@@ -16,6 +16,7 @@ class UpdateStatus:
     update_available: bool
     release_url: str | None
     error: str | None = None
+    no_releases: bool = False
 
 
 def check_for_update(timeout: int = 5) -> UpdateStatus:
@@ -29,6 +30,22 @@ def check_for_update(timeout: int = 5) -> UpdateStatus:
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
             payload = json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        if exc.code == 404:
+            return UpdateStatus(
+                current_version=APP_VERSION,
+                latest_version=None,
+                update_available=False,
+                release_url=None,
+                no_releases=True,
+            )
+        return UpdateStatus(
+            current_version=APP_VERSION,
+            latest_version=None,
+            update_available=False,
+            release_url=None,
+            error=str(exc),
+        )
     except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
         return UpdateStatus(
             current_version=APP_VERSION,

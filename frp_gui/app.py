@@ -258,9 +258,12 @@ def create_app() -> Flask:
             "update_available": status.update_available,
             "release_url": status.release_url,
             "error": status.error,
+            "no_releases": status.no_releases,
         }
         if status.error:
             flash("Update check failed. See details below.", "error")
+        elif status.no_releases:
+            flash("No GitHub releases have been published yet.", "warning")
         elif status.update_available:
             flash("A new version is available.", "success")
         else:

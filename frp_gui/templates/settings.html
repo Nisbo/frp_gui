@@ -188,13 +188,15 @@
       {% if update_status %}
         <div>
           <dt>Latest</dt>
-          <dd>{{ update_status.latest_version or "Unknown" }}</dd>
+          <dd>{% if update_status.no_releases %}No releases yet{% else %}{{ update_status.latest_version or "Unknown" }}{% endif %}</dd>
         </div>
         <div>
           <dt>Status</dt>
           <dd>
             {% if update_status.error %}
               Check failed
+            {% elif update_status.no_releases %}
+              No release published
             {% elif update_status.update_available %}
               Update available
             {% else %}
@@ -209,6 +211,11 @@
       <div class="coming-soon">
         <strong>Update check error</strong>
         <span>{{ update_status.error }}</span>
+      </div>
+    {% elif update_status and update_status.no_releases %}
+      <div class="coming-soon">
+        <strong>No GitHub release yet</strong>
+        <span>Create a release on GitHub, for example <code>v0.1.0</code>, when you want the release check to compare versions.</span>
       </div>
     {% elif update_status and update_status.update_available and update_status.release_url %}
       <div class="coming-soon">
