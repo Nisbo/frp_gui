@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="panel">
+    <div class="panel-head">
+      <div>
+        <h2>Backups</h2>
+        <p>Restore, inspect or delete saved FRP client config backups.</p>
+      </div>
+      <a class="ghost-button" href="{{ url_for('index') }}" title="Back to overview">Back</a>
+    </div>
+
+    <dl class="detail-grid two">
+      <div>
+        <dt>Config</dt>
+        <dd>{{ config_path }}</dd>
+      </div>
+      <div>
+        <dt>Backup directory</dt>
+        <dd>{{ backup_dir }}</dd>
+      </div>
+    </dl>
+
+    <div class="table-wrap compact-table">
+      <table>
+        <thead>
+          <tr>
+            <th>Created</th>
+            <th>File</th>
+            <th>Comment</th>
+            <th>Size</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for backup in backups %}
+            <tr>
+              <td>{{ backup.created_at }}</td>
+              <td><code>{{ backup.filename }}</code></td>
+              <td>{{ backup.comment or "-" }}</td>
+              <td>{{ backup.size }} B</td>
+              <td class="row-actions">
+                <a class="icon-button" href="{{ url_for('backup_detail', backup_id=backup.backup_id) }}" title="Preview backup">Preview</a>
+                <form method="post" action="{{ url_for('restore_config_backup', backup_id=backup.backup_id) }}" onsubmit="return confirm('Restore this backup? The current config will be backed up first.')">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                  <button class="ghost-button" type="submit" title="Restore backup">Restore</button>
+                </form>
+                <form method="post" action="{{ url_for('delete_config_backup', backup_id=backup.backup_id) }}" onsubmit="return confirm('Delete this backup?')">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                  <button class="danger-button" type="submit" title="Delete backup">Delete</button>
+                </form>
+              </td>
+            </tr>
+          {% else %}
+            <tr>
+              <td colspan="5" class="empty">No backups yet.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endblock %}

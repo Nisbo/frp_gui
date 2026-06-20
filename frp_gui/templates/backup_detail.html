@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="panel">
+    <div class="panel-head">
+      <div>
+        <h2>Backup preview</h2>
+        <p>{{ backup.filename }}</p>
+      </div>
+      <a class="ghost-button" href="{{ url_for('backups') }}" title="Back to backups">Back</a>
+    </div>
+
+    <dl class="detail-grid">
+      <div>
+        <dt>Created</dt>
+        <dd>{{ backup.created_at }}</dd>
+      </div>
+      <div>
+        <dt>Source</dt>
+        <dd>{{ backup.source_path or "-" }}</dd>
+      </div>
+      <div>
+        <dt>Size</dt>
+        <dd>{{ backup.size }} B</dd>
+      </div>
+      <div>
+        <dt>Comment</dt>
+        <dd>{{ backup.comment or "-" }}</dd>
+      </div>
+    </dl>
+
+    <pre class="config-preview"><code>{{ content }}</code></pre>
+
+    <div class="panel-actions">
+      <form method="post" action="{{ url_for('restore_config_backup', backup_id=backup.backup_id) }}" onsubmit="return confirm('Restore this backup? The current config will be backed up first.')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button class="primary-button" type="submit" title="Restore backup">Restore</button>
+      </form>
+      <form method="post" action="{{ url_for('delete_config_backup', backup_id=backup.backup_id) }}" onsubmit="return confirm('Delete this backup?')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button class="danger-button" type="submit" title="Delete backup">Delete</button>
+      </form>
+    </div>
+  </section>
+{% endblock %}

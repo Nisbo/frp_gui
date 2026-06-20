@@ -1,0 +1,276 @@
+{% extends "base.html" %}
+
+{% block content %}
+  {% set settings_tabs = [
+    ("general", "General"),
+    ("network", "Network"),
+    ("updates", "Updates"),
+    ("migration", "Migration")
+  ] %}
+
+  <section class="panel settings-panel settings-tabs-panel">
+    <div class="panel-head">
+      <div>
+        <h2>Settings</h2>
+        <p>Configure FRP Gui in focused sections.</p>
+      </div>
+    </div>
+
+    <nav class="settings-tabs" aria-label="Settings sections">
+      {% for tab_key, tab_label in settings_tabs %}
+        <a class="settings-tab {% if active_tab == tab_key %}active{% endif %}" href="{{ url_for('settings', tab=tab_key) }}" {% if active_tab == tab_key %}aria-current="page"{% endif %}>
+          {{ tab_label }}
+        </a>
+      {% endfor %}
+    </nav>
+  </section>
+
+  {% if active_tab == "general" %}
+  <section class="panel settings-panel">
+    <div class="panel-head">
+      <div>
+        <h2>General</h2>
+        <p>Set the active FRP config, binary and optional systemd control.</p>
+      </div>
+    </div>
+
+    <form class="form-grid single" method="post" action="{{ url_for('save_settings') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+      <label>
+        FRP client config path
+        <input name="config_path" value="{{ config_path }}" required>
+        <span class="field-help">Path to the active <code>frpc.ini</code> or future <code>frpc.toml</code>. The file must exist before it can be saved.</span>
+      </label>
+
+      <label>
+        frpc binary
+        <input name="frpc_binary" value="{{ frpc_binary }}" required>
+        <span class="field-help">Path to the FRP client executable, usually <code>/opt/frp/frpc</code> or a binary available in <code>PATH</code>.</span>
+      </label>
+
+      <label>
+        systemd service
+        <input name="frpc_service" value="{{ frpc_service }}" required>
+        <span class="field-help">Name of the service used for start, stop, restart, enable and disable actions, for example <code>frpc</code>.</span>
+      </label>
+
+      <label class="switch-row service-toggle">
+        <input name="allow_systemctl" type="checkbox" {% if systemctl_enabled %}checked{% endif %}>
+        <span>
+          Enable systemd service control
+          <small>Allows this GUI to call <code>systemctl</code> for the configured service. The app process still needs root permissions or a restricted sudo rule.</small>
+        </span>
+      </label>
+
+      <div class="form-actions split-actions">
+        <button class="ghost-button" type="submit" formaction="{{ url_for('check_settings') }}" title="Check paths and service">Check settings</button>
+        <button class="primary-button" type="submit" title="Save runtime settings">Save</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="panel settings-panel">
+    <div class="panel-head">
+      <div>
+        <h2>Application</h2>
+        <p>Read-only information about this running FRP Gui instance.</p>
+      </div>
+    </div>
+
+    <dl class="detail-grid two">
+      <div>
+        <dt>Current app path</dt>
+        <dd>{{ app_root }}</dd>
+      </div>
+      <div>
+        <dt>Configured install target</dt>
+        <dd>{{ configured_install_path }}</dd>
+      </div>
+      <div>
+        <dt>Config format</dt>
+        <dd>{{ config_format }}</dd>
+      </div>
+    </dl>
+  </section>
+  {% elif active_tab == "network" %}
+
+  <section class="panel settings-panel">
+    <div class="panel-head">
+      <div>
+        <h2>Network</h2>
+        <p>Configure the internal app listener and the nginx reverse proxy port.</p>
+      </div>
+    </div>
+
+    <form class="form-grid network-form" method="post" action="{{ url_for('check_network_settings') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label>
+        Internal host
+        <input name="internal_host" value="{{ network.internal_host }}" required>
+        <span class="field-help">Important. The Gunicorn/Flask backend should normally bind to <code>127.0.0.1</code> so it is reachable only through nginx.</span>
+      </label>
+      <label>
+        Internal port
+        <input name="internal_port" type="number" min="1" max="65535" value="{{ network.internal_port }}" required>
+        <span class="field-help">Important. The local backend port. Default is <code>8844</code>. Changing this needs an FRP Gui service restart in production.</span>
+      </label>
+      <label>
+        Public port
+        <input name="public_port" type="number" min="1" max="65535" value="{{ network.public_port }}" required>
+        <span class="field-help">Important. The port nginx listens on from the network. Default is <code>8844</code>; use <code>80</code> only if it is free.</span>
+      </label>
+      <label>
+        Server name
+        <input name="server_name" value="{{ network.server_name }}" required>
+        <span class="field-help">Optional. Use <code>_</code> as catch-all, or enter a DNS name such as <code>frp-gui.example.org</code>.</span>
+      </label>
+      <label class="full-row">
+        Nginx site path
+        <input name="nginx_site_path" value="{{ network.nginx_site_path }}" required>
+        <span class="field-help">Advanced. Where the generated nginx site config should be written on Debian. Applying this requires root permissions.</span>
+      </label>
+      <div class="form-actions split-actions full-row">
+        <button class="ghost-button" type="submit" formaction="{{ url_for('check_network_settings') }}" title="Check nginx and ports">Check network</button>
+        <button class="primary-button" type="submit" formaction="{{ url_for('apply_nginx_settings') }}" title="Save settings, write nginx config and run nginx -t">Save & apply nginx</button>
+      </div>
+    </form>
+
+    <div class="coming-soon nginx-preview-note">
+      <strong>Generated nginx preview</strong>
+      <span>This preview updates while you type. Save & apply nginx writes this reverse proxy config and runs an nginx config test. Internal host or port changes need an FRP Gui service restart to affect the backend listener.</span>
+    </div>
+    <pre class="config-preview"><code id="nginx-preview">{{ nginx_preview }}</code></pre>
+  </section>
+  {% elif active_tab == "updates" %}
+
+  <section class="panel settings-panel">
+    <div class="panel-head">
+      <div>
+        <h2>Updates</h2>
+        <p>Check releases, update from git, or upload a ZIP package.</p>
+      </div>
+    </div>
+
+    <dl class="detail-grid two">
+      <div>
+        <dt>Installed</dt>
+        <dd>v{{ app_version }}</dd>
+      </div>
+      <div>
+        <dt>Repository</dt>
+        <dd><a class="table-link" href="{{ repo_url }}" target="_blank" rel="noopener noreferrer">GitHub</a></dd>
+      </div>
+      <div>
+        <dt>Git checkout</dt>
+        <dd>{{ "Yes" if app_update_status.git_repo else "No" }}</dd>
+      </div>
+      <div>
+        <dt>Git branch</dt>
+        <dd>{{ app_update_status.branch or "No branch yet" }}</dd>
+      </div>
+      <div>
+        <dt>Git commit</dt>
+        <dd>{{ app_update_status.commit or "No commit" }}</dd>
+      </div>
+      <div>
+        <dt>git command</dt>
+        <dd>{{ "Available" if app_update_status.git_available else "Not found" }}</dd>
+      </div>
+      <div>
+        <dt>Git remote</dt>
+        <dd>{{ app_update_status.remote or "No origin remote" }}</dd>
+      </div>
+      <div>
+        <dt>Git update</dt>
+        <dd>{{ app_update_status.message }}</dd>
+      </div>
+      {% if update_status %}
+        <div>
+          <dt>Latest</dt>
+          <dd>{{ update_status.latest_version or "Unknown" }}</dd>
+        </div>
+        <div>
+          <dt>Status</dt>
+          <dd>
+            {% if update_status.error %}
+              Check failed
+            {% elif update_status.update_available %}
+              Update available
+            {% else %}
+              Up to date
+            {% endif %}
+          </dd>
+        </div>
+      {% endif %}
+    </dl>
+
+    {% if update_status and update_status.error %}
+      <div class="coming-soon">
+        <strong>Update check error</strong>
+        <span>{{ update_status.error }}</span>
+      </div>
+    {% elif update_status and update_status.update_available and update_status.release_url %}
+      <div class="coming-soon">
+        <strong>New release available</strong>
+        <span><a class="table-link" href="{{ update_status.release_url }}" target="_blank" rel="noopener noreferrer">Open release page</a></span>
+      </div>
+    {% endif %}
+
+    {% if app_update_result %}
+      <div class="update-result {{ 'ok' if app_update_result.ok else 'error' }}">
+        <strong>{{ app_update_result.message }}</strong>
+        {% if app_update_result.backup_path %}
+          <span>Backup: <code>{{ app_update_result.backup_path }}</code></span>
+        {% endif %}
+        {% if app_update_result.details %}
+          <pre class="config-preview update-output"><code>{{ app_update_result.details | join("\n\n") }}</code></pre>
+        {% endif %}
+      </div>
+    {% endif %}
+
+    <div class="update-actions">
+      <form class="update-card" method="post" action="{{ url_for('check_update') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <strong>Release check</strong>
+        <span>Checks the latest GitHub release. This only reports availability and does not change files.</span>
+        <button class="ghost-button" type="submit" title="Check for updates">Check updates</button>
+      </form>
+
+      <form class="update-card" method="post" action="{{ url_for('apply_git_update') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <strong>Git update</strong>
+        <span>Requires a real git checkout with at least one commit and an <code>origin</code> remote. Runs <code>git fetch --tags --prune origin</code> and <code>git pull --ff-only</code>.</span>
+        <button class="primary-button" type="submit" title="Update from git" {% if not app_update_status.git_ready %}disabled{% endif %}>Update from git</button>
+      </form>
+
+      <form class="update-card" method="post" action="{{ url_for('apply_zip_update') }}" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <strong>ZIP update</strong>
+        <span>Uploads a ZIP with the same project structure as git: <code>frp_gui/</code>, <code>run.py</code>, and optional docs, scripts or samples. A backup is created first.</span>
+        <input name="update_zip" type="file" accept=".zip,application/zip" required>
+        <button class="primary-button" type="submit" title="Upload ZIP update">Upload ZIP update</button>
+      </form>
+    </div>
+
+    <div class="coming-soon">
+      <strong>Restart after update</strong>
+      <span>Updated files are written to disk, but the running Python process keeps the old code until FRP Gui is restarted. On the live server we will wire this to the FRP Gui systemd service.</span>
+    </div>
+  </section>
+  {% elif active_tab == "migration" %}
+
+  <section class="panel settings-panel">
+    <div class="panel-head">
+      <div>
+        <h2>TOML migration</h2>
+        <p>The converter will be added as a guided step with preview, backup and verify.</p>
+      </div>
+    </div>
+    <div class="coming-soon">
+      <strong>Planned flow</strong>
+      <span>Read INI, preview TOML, write <code>frpc.toml</code>, run <code>frpc verify</code>, then switch the service command.</span>
+    </div>
+  </section>
+  {% endif %}
+{% endblock %}

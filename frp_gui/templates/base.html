@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>FRP Client Web GUI</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">FRP Client</p>
+          <h1>Web GUI</h1>
+        </div>
+        <div class="top-actions">
+          <button class="ghost-button theme-toggle" type="button" title="Toggle dark mode" aria-label="Toggle dark mode">Theme</button>
+          <a class="ghost-button" href="{{ url_for('index') }}" title="Go to overview">Home</a>
+          <a class="ghost-button" href="{{ url_for('settings') }}" title="Open settings">Settings</a>
+          {% if session.get("logged_in") %}
+            <form method="post" action="{{ url_for('logout') }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <button class="ghost-button" type="submit" title="Sign out">Logout</button>
+            </form>
+          {% endif %}
+        </div>
+      </header>
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <section class="flash-stack" aria-live="polite">
+            {% for category, message in messages %}
+              <div class="flash {{ category }}">{{ message }}</div>
+            {% endfor %}
+          </section>
+        {% endif %}
+      {% endwith %}
+
+      {% if diagnostics %}
+        <section class="diagnostics top-diagnostics" aria-live="polite">
+          {% for item in diagnostics %}
+            <div class="diagnostic {{ item.status }}">
+              <strong>{{ item.label }}</strong>
+              <span>{{ item.message }}</span>
+            </div>
+          {% endfor %}
+        </section>
+      {% endif %}
+
+      {% if restart_required %}
+        <section class="restart-banner" aria-live="polite">
+          <div>
+            <strong>Restart required</strong>
+            <span>FRP config changed. Restart the FRP client for the changes to take effect.</span>
+          </div>
+          <form method="post" action="{{ url_for('dismiss_restart_required') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit" title="Dismiss restart reminder" aria-label="Dismiss restart reminder">×</button>
+          </form>
+        </section>
+      {% endif %}
+
+      {% block content %}{% endblock %}
+
+      <footer class="app-footer">
+        <a href="{{ repo_url }}" target="_blank" rel="noopener noreferrer">{{ app_name }}</a>
+        <span>v{{ app_version }}</span>
+      </footer>
+    </main>
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+  </body>
+</html>

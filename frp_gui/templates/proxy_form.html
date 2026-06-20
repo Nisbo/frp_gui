@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="panel proxy-panel">
+    <div class="panel-head">
+      <div>
+        <h2>{% if mode == "new" %}Create proxy{% elif mode == "copy" %}Copy proxy{% else %}Edit proxy{% endif %}</h2>
+        <p>HTTP/HTTPS proxies need a domain, TCP/UDP proxies need a remote port.</p>
+      </div>
+    </div>
+
+    <form class="form-grid proxy-form" method="post" action="{% if mode == 'edit' %}{{ url_for('update_proxy', name=proxy.name) }}{% else %}{{ url_for('create_proxy') }}{% endif %}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label>
+        Name
+        <input name="name" value="{{ proxy.get('name', '') }}" required maxlength="64">
+      </label>
+      <label>
+        Type
+        <select name="type" required>
+          {% for item in ["https", "http", "tcp", "udp", "stcp", "sudp", "xtcp", "tcpmux"] %}
+            <option value="{{ item }}" {% if proxy.get('type', '') == item %}selected{% endif %}>{{ item }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>
+        Local IP / host
+        <input name="local_ip" value="{{ proxy.get('local_ip', '127.0.0.1') }}" required>
+      </label>
+      <label>
+        Local port
+        <input name="local_port" type="number" min="1" max="65535" value="{{ proxy.get('local_port', '') }}" required>
+      </label>
+      <label>
+        Domains
+        <input name="custom_domains" value="{{ proxy.get('custom_domains', '') }}" placeholder="app.example.org">
+      </label>
+      <label>
+        Remote-Port
+        <input name="remote_port" type="number" min="1" max="65535" value="{{ proxy.get('remote_port', '') }}">
+      </label>
+
+      <label class="switch-row proxy-enabled-row">
+        <input type="hidden" name="enabled_form" value="1">
+        <input name="enabled" type="checkbox" {% if proxy.get('enabled', 'true') != 'false' %}checked{% endif %}>
+        <span>Enabled</span>
+      </label>
+
+      <div class="form-actions proxy-actions">
+        {% if mode == "edit" %}
+          <button class="danger-button" type="submit" form="delete-proxy-form" title="Delete proxy">Delete</button>
+        {% endif %}
+        <a class="ghost-button" href="{{ url_for('index') }}" title="Cancel">Cancel</a>
+        {% if mode == "edit" %}
+          <a class="ghost-button" href="{{ url_for('copy_proxy', name=proxy.name) }}" title="Copy as new proxy">Copy as new</a>
+        {% endif %}
+        <button class="primary-button" type="submit" title="Save proxy">Save</button>
+      </div>
+    </form>
+
+    {% if mode == "edit" %}
+      <form id="delete-proxy-form" method="post" action="{{ url_for('delete_proxy', name=proxy.name) }}" onsubmit="return confirm('Delete this proxy? FRP must be restarted afterwards.')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      </form>
+    {% endif %}
+  </section>
+{% endblock %}

@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="panel narrow">
+    <div class="panel-head">
+      <div>
+        <h2>Edit server</h2>
+        <p>Base settings from the <code>[common]</code> section.</p>
+      </div>
+    </div>
+
+    <form class="form-grid" method="post" action="{{ url_for('save_common') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label>
+        Server address
+        <input name="server_addr" value="{{ common.get('server_addr', '') }}" required>
+      </label>
+      <label>
+        Server port
+        <input name="server_port" type="number" min="1" max="65535" value="{{ common.get('server_port', '') }}" required>
+      </label>
+      <label>
+        Token
+        <input name="token" type="password" value="{{ common.get('token', '') }}" autocomplete="new-password">
+      </label>
+      <label class="switch-row">
+        <input name="tls_enable" type="checkbox" {% if common.get('tls_enable', '').lower() == 'true' %}checked{% endif %}>
+        <span>TLS enabled</span>
+      </label>
+      <div class="form-actions">
+        <a class="ghost-button" href="{{ url_for('index') }}" title="Cancel">Cancel</a>
+        <button class="primary-button" type="submit" title="Save server settings">Save</button>
+      </div>
+    </form>
+  </section>
+{% endblock %}

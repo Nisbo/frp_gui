@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="panel narrow login-panel">
+    <div class="panel-head">
+      <div>
+        <h2>Sign in</h2>
+        <p>Access the local FRP management UI.</p>
+      </div>
+    </div>
+
+    <form class="form-grid single" method="post" action="{{ url_for('login_post') }}">
+      <label>
+        Password
+        <input name="password" type="password" autofocus required autocomplete="current-password">
+      </label>
+      <div class="form-actions">
+        <button class="primary-button" type="submit" title="Sign in">Login</button>
+      </div>
+    </form>
+  </section>
+{% endblock %}

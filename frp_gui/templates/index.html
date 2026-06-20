@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% macro sort_link(label, key) -%}
+  {% set next_direction = "desc" if sort_key == key and direction == "asc" else "asc" %}
+  <a class="sort-link" href="{{ url_for('index', sort=key, direction=next_direction) }}">
+    {{ label }}
+    {% if sort_key == key %}
+      <span aria-hidden="true">{% if direction == "asc" %}↑{% else %}↓{% endif %}</span>
+    {% endif %}
+  </a>
+{%- endmacro %}
+
+{% block content %}
+  <section class="overview">
+    <div class="metric">
+      <span>Status</span>
+      <strong>{{ status }}</strong>
+    </div>
+    <div class="metric">
+      <span>Server</span>
+      <strong>{{ config.common.get("server_addr", "-") }}:{{ config.common.get("server_port", "-") }}</strong>
+    </div>
+    <div class="metric">
+      <span>Config</span>
+      <strong>{{ config_path }}</strong>
+    </div>
+    <div class="metric">
+      <span>Enabled</span>
+      <strong>{{ config.proxies|selectattr("enabled", "ne", "false")|list|length }} / {{ config.proxies|length }}</strong>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <div>
+        <h2>Server</h2>
+        <p>Base settings from the <code>[common]</code> section.</p>
+      </div>
+      <a class="ghost-button" href="{{ url_for('edit_server') }}" title="Edit server settings">Edit</a>
+    </div>
+    <dl class="detail-grid">
+      <div>
+        <dt>Address</dt>
+        <dd>{{ config.common.get("server_addr", "-") }}</dd>
+      </div>
+      <div>
+        <dt>Port</dt>
+        <dd>{{ config.common.get("server_port", "-") }}</dd>
+      </div>
+      <div>
+        <dt>TLS</dt>
+        <dd>{% if config.common.get("tls_enable", "").lower() == "true" %}Enabled{% else %}Disabled{% endif %}</dd>
+      </div>
+      <div>
+        <dt>Token</dt>
+        <dd>{% if config.common.get("token") %}Set{% else %}Not set{% endif %}</dd>
+      </div>
+    </dl>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <div>
+        <h2>Proxies</h2>
+        <p>Entries from the selected FRP client config.</p>
+      </div>
+      <a class="primary-button" href="{{ url_for('new_proxy') }}" title="Create new proxy">+</a>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>{{ sort_link("Name", "name") }}</th>
+            <th>{{ sort_link("Status", "status") }}</th>
+            <th>Type</th>
+            <th>{{ sort_link("Local", "ip") }}</th>
+            <th>{{ sort_link("Domain / Remote", "domain") }}</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for proxy in proxies_view %}
+            <tr class="{% if proxy.enabled == 'false' %}disabled-row{% endif %}">
+              <td><strong>{{ proxy.name }}</strong></td>
+              <td>
+                <form method="post" action="{{ url_for('toggle_proxy', name=proxy.name) }}" onsubmit="return confirm('{% if proxy.enabled == 'false' %}Enable this proxy? FRP must be restarted afterwards.{% else %}Disable this proxy? FRP must be restarted afterwards.{% endif %}')">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                  <button class="status-pill {% if proxy.enabled == 'false' %}off{% else %}on{% endif %}" type="submit" title="{% if proxy.enabled == 'false' %}Enable proxy{% else %}Disable proxy{% endif %}">
+                    {% if proxy.enabled == 'false' %}Disabled{% else %}Enabled{% endif %}
+                  </button>
+                </form>
+              </td>
+              <td><span class="type-pill type-{{ proxy.type }}">{{ proxy.type }}</span></td>
+              <td>
+                {% if proxy.local_url %}
+                  <a class="table-link" href="{{ proxy.local_url }}" target="_blank" rel="noopener noreferrer">{{ proxy.local_ip }}:{{ proxy.local_port }}</a>
+                {% else %}
+                  {{ proxy.local_ip }}:{{ proxy.local_port }}
+                {% endif %}
+              </td>
+              <td>
+                {% if proxy.domain_urls %}
+                  <div class="link-stack">
+                    {% for item in proxy.domain_urls %}
+                      {% if item.url %}
+                        <a class="table-link" href="{{ item.url }}" target="_blank" rel="noopener noreferrer">{{ item.label }}</a>
+                      {% else %}
+                        <span>{{ item.label }}</span>
+                      {% endif %}
+                    {% endfor %}
+                  </div>
+                {% elif proxy.remote_port %}
+                  :{{ proxy.remote_port }}
+                {% else %}
+                  -
+                {% endif %}
+              </td>
+              <td class="row-actions">
+                <a class="icon-button" href="{{ url_for('edit_proxy', name=proxy.name) }}" title="Edit proxy">Edit</a>
+                <a class="icon-button" href="{{ url_for('copy_proxy', name=proxy.name) }}" title="Copy as new proxy">Copy</a>
+                <form method="post" action="{{ url_for('delete_proxy', name=proxy.name) }}" onsubmit="return confirm('Delete this proxy?')">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                  <button class="danger-button" type="submit" title="Delete proxy">Del</button>
+                </form>
+              </td>
+            </tr>
+          {% else %}
+            <tr>
+              <td colspan="6" class="empty">No proxies yet.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="panel-actions">
+      <form method="post" action="{{ url_for('verify') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button class="ghost-button" type="submit" title="Verify config">Verify</button>
+      </form>
+      {% if service_control %}
+        {% for action in ["start", "stop", "restart", "enable", "disable"] %}
+          <form method="post" action="{{ url_for('service_action', action=action) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button class="{% if action == 'stop' or action == 'disable' %}danger-button{% elif action == 'restart' %}primary-button{% else %}ghost-button{% endif %}" type="submit" title="{{ action|capitalize }} FRP Client">{{ action|capitalize }}</button>
+          </form>
+        {% endfor %}
+      {% else %}
+        <a class="ghost-button" href="{{ url_for('settings') }}" title="Configure service control">{{ service_control_label }}</a>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <div>
+        <h2>Backups</h2>
+        <p>Create a manual backup of the current config before changing proxies or server settings.</p>
+      </div>
+      <a class="ghost-button" href="{{ url_for('backups') }}" title="Open backup list">View backups</a>
+    </div>
+
+    <form class="form-grid backup-create" method="post" action="{{ url_for('create_config_backup') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label>
+        Backup comment
+        <input name="comment" placeholder="Before changing proxy domains">
+      </label>
+      <div class="form-actions inline-actions">
+        <button class="primary-button" type="submit" title="Create backup">Create backup</button>
+      </div>
+    </form>
+  </section>
+{% endblock %}
