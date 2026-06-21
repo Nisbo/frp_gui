@@ -8,6 +8,7 @@ NGINX_SITE="/etc/nginx/sites-available/frp-gui.conf"
 NGINX_LINK="/etc/nginx/sites-enabled/frp-gui.conf"
 NGINX_BIN="/usr/sbin/nginx"
 SYSTEMCTL_BIN="/usr/bin/systemctl"
+JOURNALCTL_BIN="/usr/bin/journalctl"
 
 if [[ "${EUID}" -ne 0 ]]; then
   echo "Please run this installer as root."
@@ -26,6 +27,11 @@ fi
 
 if [[ ! -x "${SYSTEMCTL_BIN}" ]]; then
   echo "systemctl binary not found at ${SYSTEMCTL_BIN}."
+  exit 1
+fi
+
+if [[ ! -x "${JOURNALCTL_BIN}" ]]; then
+  echo "journalctl binary not found at ${JOURNALCTL_BIN}."
   exit 1
 fi
 
@@ -105,9 +111,31 @@ EOF
 ln -sf "${NGINX_SITE}" "${NGINX_LINK}"
 
 "${SYSTEMCTL_BIN}" daemon-reload
-"${SYSTEMCTL_BIN}" enable --now frp-gui
+"${SYSTEMCTL_BIN}" enable frp-gui
+"${SYSTEMCTL_BIN}" restart frp-gui
+
+if ! "${SYSTEMCTL_BIN}" is-active --quiet frp-gui; then
+  echo
+  echo "frp-gui service failed to start."
+  echo
+  "${SYSTEMCTL_BIN}" status frp-gui --no-pager -l || true
+  echo
+  "${JOURNALCTL_BIN}" -u frp-gui -n 80 --no-pager || true
+  exit 1
+fi
+
 "${NGINX_BIN}" -t
-"${SYSTEMCTL_BIN}" reload nginx
+"${SYSTEMCTL_BIN}" reload nginx || "${SYSTEMCTL_BIN}" restart nginx
+
+if ! "${SYSTEMCTL_BIN}" is-active --quiet nginx; then
+  echo
+  echo "nginx service is not running."
+  echo
+  "${SYSTEMCTL_BIN}" status nginx --no-pager -l || true
+  echo
+  "${JOURNALCTL_BIN}" -u nginx -n 80 --no-pager || true
+  exit 1
+fi
 
 echo
 echo "FRP Gui installed."
