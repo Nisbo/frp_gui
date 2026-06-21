@@ -1,108 +1,92 @@
-# FRP Client Web GUI
+# FRP Gui
 
-Small Flask based web UI for managing an existing `frpc.ini` file.
+FRP Gui is a small Flask web interface for managing an existing FRP client
+configuration file, usually `frpc.ini`.
 
 Current app version:
 
 ```text
-0.1.0-dev
+0.1.0
 ```
 
-The first version intentionally keeps FRP's current INI setup working. A later
-step can migrate the config to TOML, which is the recommended FRP format for
-newer versions.
+The first version keeps INI support because many existing FRP installations
+still use `frpc.ini`. TOML migration is planned for a later version.
 
-## Features
+## What Is Gunicorn?
 
-- Edit `[common]` server settings
-- Add, edit and delete proxy entries
-- Validate basic fields before writing
-- Create timestamped backups before every save
-- Create manual backups with comments
-- List, restore and delete backups
-- Optional `frpc verify -c ...`
-- Optional `systemctl restart frpc`
-- Password login for production use
-- No database and no compile step
+Flask is the Python web framework used by FRP Gui. Flask includes a development
+server, but that development server should not be used as a real background
+service on Debian.
 
-## Local Development With pip
+Gunicorn is the small production web server that starts the Flask app and keeps
+it running behind nginx.
 
-```bash
-python3 -m venv .venv
-. .venv/bin/activate
-pip install -r requirements.txt
-python run.py
-```
-
-Open:
+In this setup:
 
 ```text
-http://127.0.0.1:8844
+Browser -> nginx :8844 -> gunicorn/FRP Gui 127.0.0.1:8844 -> frpc.ini
 ```
 
-By default the app uses:
+## Quick Install On Debian 12
 
-```text
-sample/frpc.ini
-```
+These steps assume:
 
-## Debian Runtime Without pip
+- FRP is already installed.
+- `frpc` is already running as a systemd service.
+- Your active config is `/opt/frp/frpc.ini`.
+- You want to open the GUI on port `8844`.
 
-For a server install, the preferred simple path is apt packages:
+Run the commands as `root`.
+
+### 1. Install Packages
 
 ```bash
 apt update
-apt install python3 python3-flask gunicorn nginx
+apt install -y git python3 python3-flask gunicorn nginx
 ```
 
-Suggested install path:
-
-```text
-/opt/frp-gui
-```
-
-Copy this project there and run it with gunicorn:
+### 2. Download FRP Gui From GitHub
 
 ```bash
+cd /opt
+git clone https://github.com/Nisbo/frp_gui.git frp-gui
 cd /opt/frp-gui
-gunicorn -w 2 -b 127.0.0.1:8844 'frp_gui:create_app()'
 ```
 
-## Run Against The Real FRP Config
+Using `git clone` is recommended because the GUI can later update itself with
+`git pull`.
 
-On your Debian server you can point the app at your real config:
+Alternative without git updates:
 
 ```bash
-export FRP_CONFIG_PATH=/opt/frp/frpc.ini
-export FRPC_BINARY=/opt/frp/frpc
-export FRP_GUI_PASSWORD='change-this-password'
-export FRP_GUI_SECRET='change-this-long-random-secret'
-python run.py
+apt install -y wget unzip
+cd /opt
+wget -O frp-gui.zip https://github.com/Nisbo/frp_gui/archive/refs/heads/main.zip
+unzip frp-gui.zip
+mv frp_gui-main frp-gui
+cd /opt/frp-gui
 ```
 
-Restarting the FRP service from the UI is disabled by default. Enable it only
-when the app runs with the right permissions and is protected by login and
-Nginx:
+Use the git method if possible. The ZIP method works, but the `Update from git`
+button will not be available.
+
+### 3. Create A Secret Key And Password
+
+Choose your own password:
 
 ```bash
-export FRP_GUI_ALLOW_SYSTEMCTL=1
-export FRPC_SERVICE=frpc
+openssl rand -hex 32
 ```
 
-## Suggested Debian Packages
+Copy the generated value. It will be used as `FRP_GUI_SECRET`.
 
-```bash
-apt update
-apt install python3 python3-venv nginx
-```
-
-## Example systemd Service
+### 4. Create The FRP Gui Service
 
 Create `/etc/systemd/system/frp-gui.service`:
 
 ```ini
 [Unit]
-Description=FRP Client Web GUI
+Description=FRP Gui
 After=network.target
 
 [Service]
@@ -125,41 +109,33 @@ User=root
 WantedBy=multi-user.target
 ```
 
-`User=root` is the simplest option for a first private setup because the app
-must write `/opt/frp/frpc.ini` and restart `frpc`. For a public freeware
-release, a better model is a restricted user plus a small sudoers rule for only
-`systemctl restart frpc`.
-
-Service actions need elevated privileges. The GUI supports `start`, `stop`,
-`restart`, `enable` and `disable` only when `FRP_GUI_ALLOW_SYSTEMCTL=1` and a
-service name is configured. For a hardened install, run the app as a dedicated
-user and allow only these commands through sudoers instead of giving broad root
-access:
+Replace:
 
 ```text
-frpgui ALL=NOPASSWD: /bin/systemctl start frpc, /bin/systemctl stop frpc, /bin/systemctl restart frpc, /bin/systemctl enable frpc, /bin/systemctl disable frpc
+change-this-password
+change-this-long-random-secret
 ```
 
-The app does not call sudo yet; this is the intended production direction for
-the installer.
+For a first private setup, `User=root` is the simplest option because the GUI
+must write the FRP config and restart `frpc`. A later hardened setup should use
+a dedicated user plus restricted sudo rules.
 
-## Example Nginx Reverse Proxy
+### 5. Start FRP Gui
 
-Default network layout:
-
-```text
-Browser -> nginx public port 8844 -> FRP Gui backend 127.0.0.1:8844
+```bash
+systemctl daemon-reload
+systemctl enable --now frp-gui
+systemctl status frp-gui
 ```
 
-The backend should normally stay bound to `127.0.0.1`. Nginx is the public
-entry point and can listen on `8844`, `80`, `443`, or another port you choose.
-Port `8844` is the default to avoid taking over port `80` on servers that
-already host other projects.
+### 6. Create The nginx Site
+
+Create `/etc/nginx/sites-available/frp-gui.conf`:
 
 ```nginx
 server {
     listen 8844;
-    server_name frp-gui.example.org;
+    server_name _;
 
     location / {
         proxy_pass http://127.0.0.1:8844;
@@ -171,74 +147,54 @@ server {
 }
 ```
 
-For real use, put HTTPS in front of it and do not expose the GUI publicly
-without additional protection.
-
-## Later TOML Migration
-
-FRP supports TOML/YAML/JSON since v0.52.0 and marks INI as deprecated. A later
-version of this project should:
-
-- read existing INI
-- show a conversion preview
-- write `frpc.toml`
-- run `frpc verify -c /opt/frp/frpc.toml`
-- update the `frpc.service` command from `frpc.ini` to `frpc.toml`
-
-## FRP Autodetect Prototype
-
-The first detection helper is here:
+Enable the site:
 
 ```bash
-python3 scripts/detect_frp.py
+ln -s /etc/nginx/sites-available/frp-gui.conf /etc/nginx/sites-enabled/frp-gui.conf
+nginx -t
+systemctl reload nginx
 ```
 
-It checks common `frpc` systemd service names, extracts `-c /path/to/config`
-from the unit or process list, and prints JSON that the installer or GUI can
-use later.
+### 7. Open The GUI
 
-## Updates
-
-The app footer links to:
+Open:
 
 ```text
-https://github.com/Nisbo/frp_gui
+http://YOUR-SERVER-IP:8844
 ```
 
-Settings includes a manual update check against the latest GitHub release. The
-Updates tab supports three flows:
+Log in with the password from `FRP_GUI_PASSWORD`.
 
-- release check against the latest GitHub release
-- git update for installations that are real git checkouts
-- ZIP upload for release archives or manually prepared update packages
-
-Git update runs:
-
-```text
-git fetch --tags --prune origin
-git pull --ff-only
-```
-
-For git updates, install FRP Gui as a clone instead of copying loose files:
+After changing FRP config entries in the GUI, restart the FRP client from the
+GUI or with:
 
 ```bash
-apt install -y git
-git clone https://github.com/Nisbo/frp_gui.git /opt/frp-gui
+systemctl restart frpc
+```
+
+## Updating FRP Gui
+
+If you installed with `git clone`, update from the GUI:
+
+```text
+Settings -> Updates -> Update from git
+```
+
+Or update from the shell:
+
+```bash
 cd /opt/frp-gui
+git pull --ff-only
+systemctl restart frp-gui
 ```
 
-An existing local directory can also be connected to GitHub after the first
-commit:
+The GUI also supports ZIP uploads in:
 
-```bash
-git remote add origin https://github.com/Nisbo/frp_gui.git
-git branch -M main
-git push -u origin main
+```text
+Settings -> Updates -> Upload ZIP update
 ```
 
-ZIP updates must contain the same project structure as the repository. The files
-may be directly in the ZIP root or inside one top-level directory, as GitHub
-source archives usually do:
+ZIP files must contain the same structure as the repository:
 
 ```text
 frp_gui/
@@ -249,17 +205,103 @@ sample/
 README.md
 ```
 
-To prepare a ZIP manually from a working tree:
-
-```bash
-zip -r frp-gui-update.zip frp_gui run.py requirements.txt scripts sample README.md .gitignore
-```
-
-Before git or ZIP updates, FRP Gui creates an application-file backup below:
+FRP Gui creates application backups before git and ZIP updates:
 
 ```text
-data/app-updates/backups/
+/opt/frp-gui/data/app-updates/backups/
 ```
 
-After an update, restart the FRP Gui service so the running Python process loads
-the new code.
+## Manual Configuration Reference
+
+These environment variables are used by the systemd service:
+
+```text
+FRP_CONFIG_PATH=/opt/frp/frpc.ini
+FRPC_BINARY=/opt/frp/frpc
+FRPC_SERVICE=frpc
+FRP_GUI_ALLOW_SYSTEMCTL=1
+FRP_GUI_PASSWORD=change-this-password
+FRP_GUI_SECRET=change-this-long-random-secret
+FRP_GUI_HOST=127.0.0.1
+FRP_GUI_PORT=8844
+FRP_GUI_PUBLIC_PORT=8844
+```
+
+Notes:
+
+- `FRP_CONFIG_PATH` is the config file edited by the GUI.
+- `FRPC_BINARY` is used for future FRP validation commands.
+- `FRPC_SERVICE` is the systemd service controlled by the GUI.
+- `FRP_GUI_ALLOW_SYSTEMCTL=1` enables start, stop, restart, enable and disable.
+- `FRP_GUI_HOST=127.0.0.1` keeps the backend private behind nginx.
+- `FRP_GUI_PUBLIC_PORT=8844` is the port shown in generated nginx config.
+
+## Features
+
+- Edit `[common]` server settings.
+- Add, edit, copy, disable and delete proxy entries.
+- Sort proxy entries by name, status, IP and domain.
+- Create automatic backups before config writes.
+- Create manual config backups with comments.
+- Preview, restore and delete backups.
+- Start, stop, restart, enable and disable the configured systemd service.
+- Check GitHub releases.
+- Update by git or ZIP upload.
+- Password login.
+- Dark mode.
+- No database.
+- No compile step.
+
+## Local Development
+
+For development on your workstation, use a virtual environment:
+
+```bash
+python3 -m venv .venv
+. .venv/bin/activate
+pip install -r requirements.txt
+python run.py
+```
+
+Open:
+
+```text
+http://127.0.0.1:8844
+```
+
+By default the development app uses:
+
+```text
+sample/frpc.ini
+```
+
+## FRP Autodetect Prototype
+
+There is an early helper script:
+
+```bash
+python3 scripts/detect_frp.py
+```
+
+It checks common `frpc` systemd service names, extracts `-c /path/to/config`
+from the unit or process list, and prints JSON for a future installer flow.
+
+## Planned TOML Migration
+
+FRP supports TOML/YAML/JSON since v0.52.0 and marks INI as deprecated. A later
+version of FRP Gui should:
+
+- read existing INI
+- show a conversion preview
+- write `frpc.toml`
+- run `frpc verify -c /opt/frp/frpc.toml`
+- update the `frpc.service` command from `frpc.ini` to `frpc.toml`
+
+## Security Notes
+
+Do not expose FRP Gui without a login password. For public access, put HTTPS in
+front of nginx.
+
+The first simple install uses `User=root`. This is convenient for private use
+because it can edit `/opt/frp/frpc.ini` and restart `frpc`. A hardened install
+should run as a dedicated user and allow only the required systemctl commands.
