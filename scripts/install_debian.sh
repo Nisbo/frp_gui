@@ -6,6 +6,8 @@ ENV_FILE="/etc/frp-gui.env"
 SERVICE_FILE="/etc/systemd/system/frp-gui.service"
 NGINX_SITE="/etc/nginx/sites-available/frp-gui.conf"
 NGINX_LINK="/etc/nginx/sites-enabled/frp-gui.conf"
+NGINX_BIN="/usr/sbin/nginx"
+SYSTEMCTL_BIN="/usr/bin/systemctl"
 
 if [[ "${EUID}" -ne 0 ]]; then
   echo "Please run this installer as root."
@@ -16,6 +18,16 @@ echo "Installing FRP Gui from: ${APP_DIR}"
 
 apt update
 apt install -y git python3 python3-flask gunicorn nginx
+
+if [[ ! -x "${NGINX_BIN}" ]]; then
+  echo "nginx binary not found at ${NGINX_BIN}."
+  exit 1
+fi
+
+if [[ ! -x "${SYSTEMCTL_BIN}" ]]; then
+  echo "systemctl binary not found at ${SYSTEMCTL_BIN}."
+  exit 1
+fi
 
 FRP_CONFIG_PATH="${FRP_CONFIG_PATH:-/opt/frp/frpc.ini}"
 FRPC_BINARY="${FRPC_BINARY:-/opt/frp/frpc}"
@@ -92,10 +104,10 @@ EOF
 
 ln -sf "${NGINX_SITE}" "${NGINX_LINK}"
 
-systemctl daemon-reload
-systemctl enable --now frp-gui
-nginx -t
-systemctl reload nginx
+"${SYSTEMCTL_BIN}" daemon-reload
+"${SYSTEMCTL_BIN}" enable --now frp-gui
+"${NGINX_BIN}" -t
+"${SYSTEMCTL_BIN}" reload nginx
 
 echo
 echo "FRP Gui installed."
