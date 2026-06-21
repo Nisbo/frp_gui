@@ -39,8 +39,14 @@ FRP_CONFIG_PATH="${FRP_CONFIG_PATH:-/opt/frp/frpc.ini}"
 FRPC_BINARY="${FRPC_BINARY:-/opt/frp/frpc}"
 FRPC_SERVICE="${FRPC_SERVICE:-frpc}"
 FRP_GUI_HOST="${FRP_GUI_HOST:-127.0.0.1}"
-FRP_GUI_PORT="${FRP_GUI_PORT:-8844}"
+FRP_GUI_PORT="${FRP_GUI_PORT:-8845}"
 FRP_GUI_PUBLIC_PORT="${FRP_GUI_PUBLIC_PORT:-8844}"
+
+if [[ "${FRP_GUI_HOST}" == "127.0.0.1" && "${FRP_GUI_PORT}" == "${FRP_GUI_PUBLIC_PORT}" ]]; then
+  echo "Internal and public ports cannot both be ${FRP_GUI_PORT} on 127.0.0.1."
+  echo "Using internal port 8845 and public port ${FRP_GUI_PUBLIC_PORT} to avoid an nginx proxy loop."
+  FRP_GUI_PORT="8845"
+fi
 
 if [[ -x "${APP_DIR}/scripts/detect_frp.py" ]]; then
   DETECTED_CONFIG="$(python3 "${APP_DIR}/scripts/detect_frp.py" | python3 -c 'import json,sys; data=json.load(sys.stdin); rec=data.get("recommended") or {}; print(rec.get("config_path") or "")' || true)"

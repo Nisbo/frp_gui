@@ -72,7 +72,7 @@ nginx accepts the browser connection and forwards it to Gunicorn.
 The default setup looks like this:
 
 ```text
-Browser -> nginx :8844 -> Gunicorn/FRP Gui 127.0.0.1:8844 -> frpc.ini
+Browser -> nginx :8844 -> Gunicorn/FRP Gui 127.0.0.1:8845 -> frpc.ini
 ```
 
 ## What Is FRP_GUI_SECRET?
@@ -153,7 +153,7 @@ FRP_GUI_ALLOW_SYSTEMCTL=1
 FRP_GUI_PASSWORD=generated-password
 FRP_GUI_SECRET=generated-secret
 FRP_GUI_HOST=127.0.0.1
-FRP_GUI_PORT=8844
+FRP_GUI_PORT=8845
 FRP_GUI_PUBLIC_PORT=8844
 ```
 
@@ -166,6 +166,10 @@ Important values:
 - `FRP_GUI_SECRET`: internal Flask session secret
 - `FRP_GUI_PORT`: internal Gunicorn port
 - `FRP_GUI_PUBLIC_PORT`: public nginx port
+
+`FRP_GUI_PORT` and `FRP_GUI_PUBLIC_PORT` should not be the same when nginx is
+used as reverse proxy. The installer defaults to internal port `8845` and public
+port `8844`.
 
 After changing `/etc/frp-gui.env`, restart FRP Gui:
 
@@ -190,7 +194,7 @@ server {
     server_name _;
 
     location / {
-        proxy_pass http://127.0.0.1:8844;
+        proxy_pass http://127.0.0.1:8845;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
