@@ -194,6 +194,32 @@ h2 {
   margin-top: 18px;
 }
 
+.proxy-panel-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.action-group {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.action-group > span {
+  color: var(--muted);
+  font-size: .78rem;
+  font-weight: 800;
+  margin-right: 2px;
+  text-transform: uppercase;
+}
+
+.service-action-group {
+  justify-content: flex-end;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -716,7 +742,7 @@ code {
 
 .update-actions {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
   margin-top: 18px;
 }
@@ -786,12 +812,14 @@ code {
   }
 
   .topbar,
-  .panel-head {
+  .panel-head,
+  .proxy-panel-actions {
     align-items: flex-start;
     flex-direction: column;
   }
 
-  .top-actions {
+  .top-actions,
+  .action-group {
     flex-wrap: wrap;
   }
 
@@ -813,7 +841,11 @@ code {
   .panel-actions > *,
   .form-actions > *,
   .panel-actions button,
-  .form-actions button {
+  .form-actions button,
+  .action-group,
+  .action-group form,
+  .action-group a,
+  .action-group button {
     width: 100%;
   }
 }

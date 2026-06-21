@@ -134,21 +134,27 @@
       </table>
     </div>
 
-    <div class="panel-actions">
-      <form method="post" action="{{ url_for('verify') }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <button class="ghost-button" type="submit" title="Verify config">Verify</button>
-      </form>
-      {% if service_control %}
-        {% for action in ["start", "stop", "restart", "enable", "disable"] %}
-          <form method="post" action="{{ url_for('service_action', action=action) }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <button class="{% if action == 'stop' or action == 'disable' %}danger-button{% elif action == 'restart' %}primary-button{% else %}ghost-button{% endif %}" type="submit" title="{{ action|capitalize }} FRP Client">{{ action|capitalize }}</button>
-          </form>
-        {% endfor %}
-      {% else %}
-        <a class="ghost-button" href="{{ url_for('settings') }}" title="Configure service control">{{ service_control_label }}</a>
-      {% endif %}
+    <div class="proxy-panel-actions">
+      <div class="action-group">
+        <span>Config</span>
+        <form method="post" action="{{ url_for('verify') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button class="ghost-button" type="submit" title="Verify config">Verify</button>
+        </form>
+      </div>
+      <div class="action-group service-action-group">
+        <span>FRP Client service</span>
+        {% if service_control %}
+          {% for action in ["start", "stop", "restart", "enable", "disable"] %}
+            <form method="post" action="{{ url_for('service_action', action=action) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <button class="{% if action == 'stop' or action == 'disable' %}danger-button{% elif action == 'restart' %}primary-button{% else %}ghost-button{% endif %}" type="submit" title="{{ action|capitalize }} FRP Client">{{ action|capitalize }}</button>
+            </form>
+          {% endfor %}
+        {% else %}
+          <a class="ghost-button" href="{{ url_for('settings') }}" title="Configure service control">{{ service_control_label }}</a>
+        {% endif %}
+      </div>
     </div>
   </section>
 

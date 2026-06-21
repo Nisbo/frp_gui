@@ -6,7 +6,7 @@ usually `frpc.ini`.
 Current app version:
 
 ```text
-0.1.0
+0.1.1
 ```
 
 ## Quick Install On Debian 12
@@ -156,6 +156,7 @@ FRPC_SERVICE=frpc
 FRP_GUI_ALLOW_SYSTEMCTL=1
 FRP_GUI_PASSWORD=generated-password
 FRP_GUI_SECRET=generated-secret
+FRP_GUI_SERVICE=frp-gui
 FRP_GUI_HOST=127.0.0.1
 FRP_GUI_PORT=8845
 FRP_GUI_PUBLIC_PORT=8844
@@ -168,6 +169,7 @@ Important values:
 - `FRPC_SERVICE`: systemd service controlled by the GUI
 - `FRP_GUI_PASSWORD`: login password
 - `FRP_GUI_SECRET`: internal Flask session secret
+- `FRP_GUI_SERVICE`: systemd service restarted after GUI updates
 - `FRP_GUI_PORT`: internal Gunicorn port
 - `FRP_GUI_PUBLIC_PORT`: public nginx port
 

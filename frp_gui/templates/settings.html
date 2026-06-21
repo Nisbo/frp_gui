@@ -155,7 +155,7 @@
     <div class="update-version-bar">
       <div>
         <span>Installed</span>
-        <strong>v{{ app_version }}</strong>
+        <strong>{{ app_version }}</strong>
       </div>
       <div>
         <span>Available</span>
@@ -259,6 +259,13 @@
         <button class="primary-button" type="submit" title="Update from git" {% if not app_update_status.git_ready %}disabled{% endif %}>Update from git</button>
       </form>
 
+      <form class="update-card" method="post" action="{{ url_for('restart_app_service') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <strong>Restart FRP Gui</strong>
+        <span>Restarts the <code>frp-gui</code> systemd service so updated files are loaded by Gunicorn.</span>
+        <button class="primary-button" type="submit" title="Restart FRP Gui">Restart FRP Gui</button>
+      </form>
+
       <form class="update-card" method="post" action="{{ url_for('apply_zip_update') }}" enctype="multipart/form-data">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <strong>ZIP update</strong>
@@ -270,7 +277,7 @@
 
     <div class="coming-soon">
       <strong>Restart after update</strong>
-      <span>Updated files are written to disk, but the running Python process keeps the old code until FRP Gui is restarted. On the live server we will wire this to the FRP Gui systemd service.</span>
+      <span>Updated files are written to disk, but the running Python process keeps the old code until FRP Gui is restarted.</span>
     </div>
   </section>
   {% elif active_tab == "migration" %}

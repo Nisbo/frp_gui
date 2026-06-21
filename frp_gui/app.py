@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import secrets
+import shlex
 import shutil
 import subprocess
 from pathlib import Path
@@ -39,6 +40,7 @@ def create_app() -> Flask:
         ALLOW_SYSTEMCTL=os.environ.get("FRP_GUI_ALLOW_SYSTEMCTL", "0") == "1",
         ADMIN_PASSWORD=os.environ.get("FRP_GUI_PASSWORD", ""),
         INSTALL_PATH=Path(os.environ.get("FRP_GUI_INSTALL_PATH", "/opt/frp-gui")),
+        FRP_GUI_SERVICE=os.environ.get("FRP_GUI_SERVICE", "frp-gui"),
         FRP_GUI_HOST=os.environ.get("FRP_GUI_HOST", "127.0.0.1"),
         FRP_GUI_PORT=int(os.environ.get("FRP_GUI_PORT", "8845")),
         FRP_GUI_PUBLIC_PORT=int(os.environ.get("FRP_GUI_PUBLIC_PORT", "8844")),
@@ -290,6 +292,19 @@ def create_app() -> Flask:
         result = update_from_zip(Path(app.root_path).parent, upload.stream)
         _store_app_update_result(result)
         flash(result.message, "success" if result.ok else "error")
+        return redirect(url_for("settings", tab="updates"))
+
+    @app.post("/settings/update/restart-app")
+    def restart_app_service():
+        systemctl = shutil.which("systemctl")
+        if not systemctl:
+            flash("systemctl is not available in this environment.", "error")
+            return redirect(url_for("settings", tab="updates"))
+
+        service = app.config["FRP_GUI_SERVICE"]
+        command = f"sleep 1; exec {shlex.quote(systemctl)} restart {shlex.quote(service)}"
+        subprocess.Popen(["/bin/sh", "-c", command], start_new_session=True)
+        flash("FRP Gui restart requested. Reload the page in a few seconds.", "success")
         return redirect(url_for("settings", tab="updates"))
 
     @app.post("/restart-required/dismiss")
