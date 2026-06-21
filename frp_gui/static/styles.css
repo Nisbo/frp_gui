@@ -675,9 +675,48 @@ code {
   margin-top: 24px;
 }
 
+.update-version-bar {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  gap: 12px;
+  align-items: stretch;
+  margin-bottom: 16px;
+}
+
+.update-version-bar > div,
+.update-version-bar form {
+  display: grid;
+  align-content: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  min-height: 74px;
+  padding: 13px;
+}
+
+.update-version-bar span {
+  color: var(--muted);
+  font-size: .78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.update-version-bar strong {
+  margin-top: 7px;
+  overflow-wrap: anywhere;
+  font-size: 1rem;
+}
+
+.update-version-bar form {
+  min-width: 160px;
+}
+
+.update-detail-grid {
+  margin-top: 0;
+}
+
 .update-actions {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
   margin-top: 18px;
 }
@@ -761,6 +800,7 @@ code {
   .backup-create,
   .detail-grid,
   .detail-grid.two,
+  .update-version-bar,
   .update-actions {
     grid-template-columns: 1fr;
   }

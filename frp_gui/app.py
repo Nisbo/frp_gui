@@ -40,7 +40,7 @@ def create_app() -> Flask:
         ADMIN_PASSWORD=os.environ.get("FRP_GUI_PASSWORD", ""),
         INSTALL_PATH=Path(os.environ.get("FRP_GUI_INSTALL_PATH", "/opt/frp-gui")),
         FRP_GUI_HOST=os.environ.get("FRP_GUI_HOST", "127.0.0.1"),
-        FRP_GUI_PORT=int(os.environ.get("FRP_GUI_PORT", "8844")),
+        FRP_GUI_PORT=int(os.environ.get("FRP_GUI_PORT", "8845")),
         FRP_GUI_PUBLIC_PORT=int(os.environ.get("FRP_GUI_PUBLIC_PORT", "8844")),
         FRP_GUI_SERVER_NAME=os.environ.get("FRP_GUI_SERVER_NAME", "_"),
         NGINX_SITE_PATH=Path(os.environ.get("FRP_GUI_NGINX_SITE_PATH", "/etc/nginx/sites-available/frp-gui.conf")),

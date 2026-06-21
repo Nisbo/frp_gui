@@ -30,7 +30,7 @@
       const publicPort = read("public_port", "8844");
       const serverName = read("server_name", "_");
       const internalHost = read("internal_host", "127.0.0.1");
-      const internalPort = read("internal_port", "8844");
+      const internalPort = read("internal_port", "8845");
 
       nginxPreview.textContent = `server {
     listen ${publicPort};

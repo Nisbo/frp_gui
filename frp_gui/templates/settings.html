@@ -113,7 +113,7 @@
       <label>
         Internal port
         <input name="internal_port" type="number" min="1" max="65535" value="{{ network.internal_port }}" required>
-        <span class="field-help">Important. The local backend port. Default is <code>8844</code>. Changing this needs an FRP Gui service restart in production.</span>
+        <span class="field-help">Important. The local Gunicorn backend port. Default is <code>8845</code> so nginx can use public port <code>8844</code>.</span>
       </label>
       <label>
         Public port
@@ -152,11 +152,46 @@
       </div>
     </div>
 
-    <dl class="detail-grid two">
+    <div class="update-version-bar">
       <div>
-        <dt>Installed</dt>
-        <dd>v{{ app_version }}</dd>
+        <span>Installed</span>
+        <strong>v{{ app_version }}</strong>
       </div>
+      <div>
+        <span>Available</span>
+        <strong>
+          {% if update_status %}
+            {% if update_status.no_releases %}No releases yet{% else %}{{ update_status.latest_version or "Unknown" }}{% endif %}
+          {% else %}
+            Not checked
+          {% endif %}
+        </strong>
+      </div>
+      <div>
+        <span>Status</span>
+        <strong>
+          {% if update_status %}
+            {% if update_status.error %}
+              Check failed
+            {% elif update_status.no_releases %}
+              No release published
+            {% elif update_status.update_available %}
+              Update available
+            {% else %}
+              Up to date
+            {% endif %}
+          {% else %}
+            Waiting
+          {% endif %}
+        </strong>
+      </div>
+      <form method="post" action="{{ url_for('check_update') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button class="primary-button" type="submit" title="Check for updates">Check updates</button>
+      </form>
+    </div>
+
+    <dl class="detail-grid two update-detail-grid">
       <div>
         <dt>Repository</dt>
         <dd><a class="table-link" href="{{ repo_url }}" target="_blank" rel="noopener noreferrer">GitHub</a></dd>
@@ -185,26 +220,6 @@
         <dt>Git update</dt>
         <dd>{{ app_update_status.message }}</dd>
       </div>
-      {% if update_status %}
-        <div>
-          <dt>Latest</dt>
-          <dd>{% if update_status.no_releases %}No releases yet{% else %}{{ update_status.latest_version or "Unknown" }}{% endif %}</dd>
-        </div>
-        <div>
-          <dt>Status</dt>
-          <dd>
-            {% if update_status.error %}
-              Check failed
-            {% elif update_status.no_releases %}
-              No release published
-            {% elif update_status.update_available %}
-              Update available
-            {% else %}
-              Up to date
-            {% endif %}
-          </dd>
-        </div>
-      {% endif %}
     </dl>
 
     {% if update_status and update_status.error %}
@@ -237,17 +252,10 @@
     {% endif %}
 
     <div class="update-actions">
-      <form class="update-card" method="post" action="{{ url_for('check_update') }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <strong>Release check</strong>
-        <span>Checks the latest GitHub release. This only reports availability and does not change files.</span>
-        <button class="ghost-button" type="submit" title="Check for updates">Check updates</button>
-      </form>
-
       <form class="update-card" method="post" action="{{ url_for('apply_git_update') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <strong>Git update</strong>
-        <span>Requires a real git checkout with at least one commit and an <code>origin</code> remote. Runs <code>git fetch --tags --prune origin</code> and <code>git pull --ff-only</code>.</span>
+        <span>Pulls from the configured git branch, normally <code>main</code>. It does not install a GitHub release asset.</span>
         <button class="primary-button" type="submit" title="Update from git" {% if not app_update_status.git_ready %}disabled{% endif %}>Update from git</button>
       </form>
 

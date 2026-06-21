@@ -96,6 +96,10 @@ If you installed with `git clone`, update from the GUI:
 Settings -> Updates -> Update from git
 ```
 
+This runs `git pull` for the checked-out branch, normally `main`. It does not
+download a GitHub release asset. The release check only compares version
+numbers.
+
 Then restart FRP Gui:
 
 ```bash
