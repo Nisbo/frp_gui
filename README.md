@@ -6,7 +6,7 @@ usually `frpc.ini`.
 Current app version:
 
 ```text
-0.1.12
+0.1.13
 ```
 
 ## Quick Install On Debian 12
@@ -101,7 +101,7 @@ Recommended release workflow:
 ```
 
 The release check compares your installed version with the latest GitHub
-release tag, for example `0.1.12`. When updates are available, the GUI shows
+release tag, for example `0.1.13`. When updates are available, the GUI shows
 release notes for every official release newer than your installed version.
 
 If the server cannot download the release directly, use the manual fallback:
@@ -115,9 +115,10 @@ Advanced git updates are still available when FRP Gui was installed with
 Settings -> Updates -> Update from git
 ```
 
-This runs `git pull --ff-only` for the checked-out branch, normally `main`.
-Use it only for testing or development systems, because `main` can contain
-changes that are newer than the latest official release.
+This fetches `origin` and moves the local checkout to the configured branch,
+normally `origin/main`. A backup is created first. Use it only for testing or
+development systems, because `main` can contain changes that are newer than
+the latest official release.
 
 After any update, restart FRP Gui:
 

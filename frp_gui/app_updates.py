@@ -86,7 +86,12 @@ def update_from_git(app_root: Path) -> AppUpdateResult:
     if not status["git_ready"]:
         return AppUpdateResult(False, str(status["message"] or "Git checkout is not ready for updates."))
 
-    backup_path = create_app_backup(app_root, "Before Git update", "Created automatically before running git pull.")
+    branch = str(status["branch"] or "main")
+    if branch == "HEAD":
+        branch = "main"
+    remote_ref = f"origin/{branch}"
+
+    backup_path = create_app_backup(app_root, "Before Git update", f"Created automatically before moving the git checkout to {remote_ref}.")
     details = [f"Backup created: {backup_path}"]
 
     fetch = _run([git, "fetch", "--tags", "--prune", "origin"], app_root)
@@ -94,10 +99,15 @@ def update_from_git(app_root: Path) -> AppUpdateResult:
     if fetch.returncode != 0:
         return AppUpdateResult(False, "Git fetch failed. No files were replaced by FRP Gui.", details, backup_path)
 
-    pull = _run([git, "pull", "--ff-only"], app_root)
-    details.append(_format_command_result("git pull --ff-only", pull))
-    if pull.returncode != 0:
-        return AppUpdateResult(False, "Git pull failed. Check the output below.", details, backup_path)
+    remote_check = _run([git, "rev-parse", "--verify", remote_ref], app_root)
+    details.append(_format_command_result(f"git rev-parse --verify {remote_ref}", remote_check))
+    if remote_check.returncode != 0:
+        return AppUpdateResult(False, f"Remote branch {remote_ref} was not found after fetch.", details, backup_path)
+
+    checkout = _run([git, "checkout", "--force", "-B", branch, remote_ref], app_root)
+    details.append(_format_command_result(f"git checkout --force -B {branch} {remote_ref}", checkout))
+    if checkout.returncode != 0:
+        return AppUpdateResult(False, "Git checkout failed. Check the output below.", details, backup_path)
 
     return AppUpdateResult(True, "Git update completed. Restart FRP Gui to run the new code.", details, backup_path)
 
