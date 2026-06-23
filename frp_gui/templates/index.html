@@ -132,7 +132,7 @@
             <tr class="{% if proxy.enabled == 'false' %}disabled-row{% endif %}">
               <td><strong>{{ proxy.name }}</strong></td>
               <td>
-                <form method="post" action="{{ url_for('toggle_proxy', name=proxy.name) }}" onsubmit="return confirm('{% if proxy.enabled == 'false' %}Enable this proxy? FRP must be restarted afterwards.{% else %}Disable this proxy? FRP must be restarted afterwards.{% endif %}')">
+                <form method="post" action="{{ url_for('toggle_proxy', name=proxy.name) }}" data-confirm="{% if proxy.enabled == 'false' %}Enable this proxy? FRP Client must be restarted afterwards.{% else %}Disable this proxy? FRP Client must be restarted afterwards.{% endif %}">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                   <button class="status-pill {% if proxy.enabled == 'false' %}off{% else %}on{% endif %}" type="submit" title="{% if proxy.enabled == 'false' %}Enable proxy{% else %}Disable proxy{% endif %}">
                     {% if proxy.enabled == 'false' %}Disabled{% else %}Enabled{% endif %}
@@ -167,7 +167,7 @@
               <td class="row-actions">
                 <a class="icon-button" href="{{ url_for('edit_proxy', name=proxy.name) }}" title="Edit proxy">Edit</a>
                 <a class="icon-button" href="{{ url_for('copy_proxy', name=proxy.name) }}" title="Copy as new proxy">Copy</a>
-                <form method="post" action="{{ url_for('delete_proxy', name=proxy.name) }}" onsubmit="return confirm('Delete this proxy?')">
+                <form method="post" action="{{ url_for('delete_proxy', name=proxy.name) }}" data-confirm="Delete this proxy?">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                   <button class="danger-button" type="submit" title="Delete proxy">Del</button>
                 </form>

@@ -6,7 +6,7 @@ usually `frpc.ini`.
 Current app version:
 
 ```text
-0.1.8
+0.1.9
 ```
 
 ## Quick Install On Debian 12
@@ -101,7 +101,7 @@ Recommended release workflow:
 ```
 
 The release check compares your installed version with the latest GitHub
-release tag, for example `0.1.8`. When updates are available, the GUI shows
+release tag, for example `0.1.9`. When updates are available, the GUI shows
 release notes for every official release newer than your installed version.
 
 If the server cannot download the release directly, use the manual fallback:

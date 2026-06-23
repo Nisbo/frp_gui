@@ -32,11 +32,11 @@
     <pre class="config-preview"><code>{{ content }}</code></pre>
 
     <div class="panel-actions">
-      <form method="post" action="{{ url_for('restore_config_backup', backup_id=backup.backup_id) }}" onsubmit="return confirm('Restore this backup? The current config will be backed up first.')">
+      <form method="post" action="{{ url_for('restore_config_backup', backup_id=backup.backup_id) }}" data-confirm="Restore this backup? The current config will be backed up first.">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <button class="primary-button" type="submit" title="Restore backup">Restore</button>
       </form>
-      <form method="post" action="{{ url_for('delete_config_backup', backup_id=backup.backup_id) }}" onsubmit="return confirm('Delete this backup?')">
+      <form method="post" action="{{ url_for('delete_config_backup', backup_id=backup.backup_id) }}" data-confirm="Delete this backup?">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <button class="danger-button" type="submit" title="Delete backup">Delete</button>
       </form>

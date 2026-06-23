@@ -14,6 +14,7 @@
           <h1>FRP Gui</h1>
         </div>
         <div class="top-actions">
+          <a class="ghost-button" href="{{ url_for('index') }}" title="Go to overview">Home</a>
           <div class="theme-switch" aria-label="Theme">
             <button class="ghost-button theme-option" type="button" data-theme-choice="light" title="Use light theme" aria-label="Use light theme">
               <span aria-hidden="true">☀</span>
@@ -24,7 +25,6 @@
               Dark
             </button>
           </div>
-          <a class="ghost-button" href="{{ url_for('index') }}" title="Go to overview">Home</a>
           <a class="ghost-button" href="{{ url_for('settings') }}" title="Open settings">Settings</a>
           {% if session.get("logged_in") %}
             <form method="post" action="{{ url_for('logout') }}">
@@ -60,14 +60,31 @@
         <section class="restart-banner" aria-live="polite">
           <div>
             <strong>Restart required</strong>
-            <span>FRP config changed. Restart the FRP client for the changes to take effect.</span>
+            <span>FRP config changed. Restart the FRP Client systemd service for the changes to take effect.</span>
           </div>
+          {% if frpc_service_control %}
+            <form method="post" action="{{ url_for('service_action', action='restart') }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <button class="primary-button" type="submit" title="Restart FRP Client">Restart FRP Client</button>
+            </form>
+          {% endif %}
           <form method="post" action="{{ url_for('dismiss_restart_required') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <button type="submit" title="Dismiss restart reminder" aria-label="Dismiss restart reminder">×</button>
           </form>
         </section>
       {% endif %}
+
+      <div class="confirm-modal" data-confirm-modal hidden>
+        <div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+          <strong id="confirm-title">Confirm action</strong>
+          <p data-confirm-message></p>
+          <div class="confirm-actions">
+            <button class="ghost-button" type="button" data-confirm-cancel>Cancel</button>
+            <button class="danger-button" type="button" data-confirm-submit>Continue</button>
+          </div>
+        </div>
+      </div>
 
       {% block content %}{% endblock %}
 

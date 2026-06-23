@@ -752,9 +752,49 @@ tr:last-child td {
   color: var(--muted);
 }
 
-.restart-banner button {
+.restart-banner form:last-child button {
   min-width: 36px;
   padding: 0;
+}
+
+.confirm-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  background: rgba(8, 13, 11, .48);
+  padding: 20px;
+}
+
+.confirm-modal[hidden] {
+  display: none;
+}
+
+.confirm-dialog {
+  display: grid;
+  gap: 12px;
+  width: min(420px, 100%);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  padding: 18px;
+}
+
+.confirm-dialog strong {
+  font-size: 1.05rem;
+}
+
+.confirm-dialog p {
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
 }
 
 code {

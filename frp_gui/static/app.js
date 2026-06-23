@@ -28,16 +28,50 @@
   });
   updateThemeButtons();
 
-  document.querySelector(".theme-toggle")?.addEventListener("click", () => {
-    const next = root.dataset.theme === "dark" ? "light" : "dark";
-    if (next === "dark") {
-      root.dataset.theme = "dark";
-      localStorage.setItem(key, "dark");
-    } else {
-      delete root.dataset.theme;
-      localStorage.setItem(key, "light");
+  const confirmModal = document.querySelector("[data-confirm-modal]");
+  const confirmMessage = document.querySelector("[data-confirm-message]");
+  const confirmCancel = document.querySelector("[data-confirm-cancel]");
+  const confirmSubmit = document.querySelector("[data-confirm-submit]");
+  let pendingForm = null;
+
+  const closeConfirm = () => {
+    if (!confirmModal) return;
+    confirmModal.hidden = true;
+    pendingForm = null;
+  };
+
+  document.querySelectorAll("form[data-confirm]").forEach((form) => {
+    form.addEventListener("submit", (event) => {
+      if (form.dataset.confirmed === "true") {
+        delete form.dataset.confirmed;
+        return;
+      }
+      event.preventDefault();
+      pendingForm = form;
+      if (confirmMessage) {
+        confirmMessage.textContent = form.dataset.confirm || "Continue?";
+      }
+      if (confirmModal) {
+        confirmModal.hidden = false;
+      }
+    });
+  });
+
+  confirmCancel?.addEventListener("click", closeConfirm);
+  confirmModal?.addEventListener("click", (event) => {
+    if (event.target === confirmModal) {
+      closeConfirm();
     }
-    updateThemeButtons();
+  });
+  confirmSubmit?.addEventListener("click", () => {
+    if (!pendingForm) return;
+    pendingForm.dataset.confirmed = "true";
+    pendingForm.requestSubmit();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && confirmModal && !confirmModal.hidden) {
+      closeConfirm();
+    }
   });
 
   const networkForm = document.querySelector(".network-form");

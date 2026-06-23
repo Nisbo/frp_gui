@@ -59,7 +59,7 @@
     </form>
 
     {% if mode == "edit" %}
-      <form id="delete-proxy-form" method="post" action="{{ url_for('delete_proxy', name=proxy.name) }}" onsubmit="return confirm('Delete this proxy? FRP must be restarted afterwards.')">
+      <form id="delete-proxy-form" method="post" action="{{ url_for('delete_proxy', name=proxy.name) }}" data-confirm="Delete this proxy? FRP Client must be restarted afterwards.">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       </form>
     {% endif %}

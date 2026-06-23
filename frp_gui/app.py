@@ -77,6 +77,7 @@ def create_app() -> Flask:
             "csrf_token": session["csrf_token"],
             "diagnostics": diagnostics,
             "restart_required": session.get("restart_required", False),
+            "frpc_service_control": _service_control_available(app),
         }
 
     @app.after_request
