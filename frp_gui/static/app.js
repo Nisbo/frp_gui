@@ -6,6 +6,28 @@
     root.dataset.theme = "dark";
   }
 
+  const updateThemeButtons = () => {
+    const active = root.dataset.theme === "dark" ? "dark" : "light";
+    document.querySelectorAll(".theme-option").forEach((button) => {
+      button.classList.toggle("active", button.dataset.themeChoice === active);
+    });
+  };
+
+  document.querySelectorAll(".theme-option").forEach((button) => {
+    button.addEventListener("click", () => {
+      const next = button.dataset.themeChoice;
+      if (next === "dark") {
+        root.dataset.theme = "dark";
+        localStorage.setItem(key, "dark");
+      } else {
+        delete root.dataset.theme;
+        localStorage.setItem(key, "light");
+      }
+      updateThemeButtons();
+    });
+  });
+  updateThemeButtons();
+
   document.querySelector(".theme-toggle")?.addEventListener("click", () => {
     const next = root.dataset.theme === "dark" ? "light" : "dark";
     if (next === "dark") {
@@ -15,6 +37,7 @@
       delete root.dataset.theme;
       localStorage.setItem(key, "light");
     }
+    updateThemeButtons();
   });
 
   const networkForm = document.querySelector(".network-form");

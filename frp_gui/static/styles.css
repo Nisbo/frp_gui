@@ -214,6 +214,31 @@ h2 {
   gap: 10px;
 }
 
+.theme-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 2px;
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+}
+
+.theme-switch .theme-option {
+  min-height: 34px;
+  border-color: transparent;
+  padding: 0 10px;
+}
+
+.theme-switch .theme-option span {
+  margin-right: 4px;
+}
+
+.theme-switch .theme-option.active {
+  background: var(--accent);
+  color: #fff;
+}
+
 .panel-head {
   justify-content: space-between;
   margin-bottom: 18px;

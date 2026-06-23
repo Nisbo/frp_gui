@@ -57,6 +57,10 @@
             <button class="primary-button" type="submit" title="Restart FRP Gui">Restart</button>
           </form>
         {% endif %}
+        <form method="post" action="{{ url_for('check_update') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button class="ghost-button" type="submit" title="Check FRP Gui updates">Check updates</button>
+        </form>
       </div>
     </div>
 
@@ -185,6 +189,7 @@
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
           <button class="ghost-button" type="submit" title="Verify config">Verify</button>
         </form>
+        <a class="ghost-button" href="{{ url_for('download_config') }}" title="Download current config">Download</a>
       </div>
     </div>
   </section>

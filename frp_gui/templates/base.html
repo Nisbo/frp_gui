@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>FRP Client Web GUI</title>
+    <title>FRP Gui</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
   </head>
   <body>
@@ -11,10 +11,19 @@
       <header class="topbar">
         <div>
           <p class="eyebrow">FRP Client</p>
-          <h1>Web GUI</h1>
+          <h1>FRP Gui</h1>
         </div>
         <div class="top-actions">
-          <button class="ghost-button theme-toggle" type="button" title="Toggle dark mode" aria-label="Toggle dark mode">Theme</button>
+          <div class="theme-switch" aria-label="Theme">
+            <button class="ghost-button theme-option" type="button" data-theme-choice="light" title="Use light theme" aria-label="Use light theme">
+              <span aria-hidden="true">☀</span>
+              Light
+            </button>
+            <button class="ghost-button theme-option" type="button" data-theme-choice="dark" title="Use dark theme" aria-label="Use dark theme">
+              <span aria-hidden="true">◐</span>
+              Dark
+            </button>
+          </div>
           <a class="ghost-button" href="{{ url_for('index') }}" title="Go to overview">Home</a>
           <a class="ghost-button" href="{{ url_for('settings') }}" title="Open settings">Settings</a>
           {% if session.get("logged_in") %}

@@ -8,7 +8,7 @@ import subprocess
 from pathlib import Path
 from urllib.parse import quote
 
-from flask import Flask, flash, redirect, render_template, request, session, url_for
+from flask import Flask, flash, redirect, render_template, request, send_file, session, url_for
 
 from .app_updates import update_from_git, update_from_release_zip, update_from_zip, update_status
 from .backups import create_backup, delete_backup, get_backup, list_backups, read_backup_content, restore_backup
@@ -510,6 +510,16 @@ def create_app() -> Flask:
         ok, output = _verify_config(app)
         flash(output or ("Config is valid." if ok else "Config is invalid."), "success" if ok else "error")
         return redirect(url_for("index"))
+
+    @app.get("/config/download")
+    def download_config():
+        config_path = Path(app.config["FRP_CONFIG_PATH"])
+        if not config_path.is_absolute():
+            config_path = (Path.cwd() / config_path).resolve()
+        if not config_path.exists() or not config_path.is_file():
+            flash(f"Config file does not exist: {config_path}", "error")
+            return redirect(url_for("index"))
+        return send_file(config_path, as_attachment=True, download_name=config_path.name)
 
     @app.post("/service/<action>")
     def service_action(action: str):
