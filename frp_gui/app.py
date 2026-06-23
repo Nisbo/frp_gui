@@ -16,7 +16,7 @@ from .app_updates import (
     list_app_backups,
     restore_app_backup,
     update_from_git,
-    update_from_release_zip,
+    update_from_release,
     update_from_zip,
     update_status,
 )
@@ -313,7 +313,7 @@ def create_app() -> Flask:
             flash("Latest release does not provide a downloadable ZIP archive.", "error")
             return redirect(url_for("settings", tab="updates"))
 
-        result = update_from_release_zip(Path(app.root_path).parent, status.zipball_url, status.latest_version)
+        result = update_from_release(Path(app.root_path).parent, status.zipball_url, status.latest_version)
         _store_app_update_result(result)
         if result.ok:
             session["app_update_pending_restart"] = True

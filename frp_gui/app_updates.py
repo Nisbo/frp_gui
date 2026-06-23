@@ -126,6 +126,14 @@ def update_from_zip(app_root: Path, zip_stream: BinaryIO, backup_reason: str = "
     return AppUpdateResult(True, "ZIP update installed. Restart FRP Gui to run the new code.", details, backup_path)
 
 
+def update_from_release(app_root: Path, zip_url: str, version: str, timeout: int = 30) -> AppUpdateResult:
+    git_result = _update_git_checkout_to_release(app_root, version)
+    if git_result is not None:
+        return git_result
+
+    return update_from_release_zip(app_root, zip_url, version, timeout)
+
+
 def update_from_release_zip(app_root: Path, zip_url: str, version: str, timeout: int = 30) -> AppUpdateResult:
     request = urllib.request.Request(
         zip_url,
@@ -150,6 +158,37 @@ def update_from_release_zip(app_root: Path, zip_url: str, version: str, timeout:
         result.message = f"Release {version} installed. Restart FRP Gui to run the new code."
     result.details.insert(0, f"Downloaded official release ZIP: {version}")
     return result
+
+
+def _update_git_checkout_to_release(app_root: Path, version: str) -> AppUpdateResult | None:
+    git = shutil.which("git")
+    if not git or not (app_root / ".git").exists():
+        return None
+
+    backup_path = create_app_backup(
+        app_root,
+        f"Before installing release {version}",
+        f"Created automatically before moving the git checkout to release {version}.",
+    )
+    details = [f"Backup created: {backup_path}"]
+
+    fetch = _run([git, "fetch", "--tags", "--prune", "origin"], app_root)
+    details.append(_format_command_result("git fetch --tags --prune origin", fetch))
+    if fetch.returncode != 0:
+        return AppUpdateResult(False, "Git fetch failed. No files were replaced by FRP Gui.", details, backup_path)
+
+    tag_ref = f"refs/tags/{version}"
+    tag_check = _run([git, "rev-parse", "--verify", tag_ref], app_root)
+    details.append(_format_command_result(f"git rev-parse --verify {tag_ref}", tag_check))
+    if tag_check.returncode != 0:
+        return AppUpdateResult(False, f"Release tag {version} was not found after fetch.", details, backup_path)
+
+    checkout = _run([git, "checkout", "--force", "-B", "main", tag_ref], app_root)
+    details.append(_format_command_result(f"git checkout --force -B main {tag_ref}", checkout))
+    if checkout.returncode != 0:
+        return AppUpdateResult(False, "Git checkout failed. Check the output below.", details, backup_path)
+
+    return AppUpdateResult(True, f"Release {version} installed through git. Restart FRP Gui to run the new code.", details, backup_path)
 
 
 def create_app_backup(app_root: Path, reason: str = "Manual app backup", comment: str = "") -> Path:
