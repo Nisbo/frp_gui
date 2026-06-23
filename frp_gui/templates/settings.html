@@ -181,13 +181,17 @@
               Up to date
             {% endif %}
           {% else %}
-            Waiting
+            Not checked
           {% endif %}
         </strong>
       </div>
-      <form method="post" action="{{ url_for('check_update') }}">
+      <form method="post" action="{{ url_for('apply_release_update') if update_status and update_status.update_available else url_for('check_update') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <button class="primary-button" type="submit" title="Check official GitHub releases">Check releases</button>
+        {% if update_status and update_status.update_available %}
+          <button class="primary-button" type="submit" title="Install latest official release">Install update</button>
+        {% else %}
+          <button class="primary-button" type="submit" title="Check official GitHub releases">Check releases</button>
+        {% endif %}
       </form>
     </div>
 
@@ -199,12 +203,38 @@
     {% elif update_status and update_status.no_releases %}
       <div class="coming-soon">
         <strong>No GitHub release yet</strong>
-        <span>Create a release on GitHub, for example <code>v0.1.0</code>, when you want the release check to compare versions.</span>
+        <span>Create a release on GitHub, for example <code>0.1.0</code>, when you want the release check to compare versions.</span>
       </div>
     {% elif update_status and update_status.update_available and update_status.release_url %}
       <div class="coming-soon">
         <strong>New release available</strong>
         <span><a class="table-link" href="{{ update_status.release_url }}" target="_blank" rel="noopener noreferrer">Open release page</a></span>
+      </div>
+    {% endif %}
+
+    {% if update_status and update_status.release_notes %}
+      <div class="release-notes">
+        <div class="update-section-title">
+          <strong>Release notes</strong>
+          <span>Changes from every official release newer than your installed version.</span>
+        </div>
+        {% for release in update_status.release_notes %}
+          <article class="release-note">
+            <div class="release-note-head">
+              <strong>{{ release.title or release.version }}</strong>
+              {% if release.url %}
+                <a class="table-link" href="{{ release.url }}" target="_blank" rel="noopener noreferrer">{{ release.version }}</a>
+              {% else %}
+                <span>{{ release.version }}</span>
+              {% endif %}
+            </div>
+            {% if release.body_html %}
+              <div class="release-note-body">{{ release.body_html | safe }}</div>
+            {% else %}
+              <div class="release-note-body empty">No release notes provided.</div>
+            {% endif %}
+          </article>
+        {% endfor %}
       </div>
     {% endif %}
 
@@ -226,13 +256,6 @@
     </div>
 
     <div class="update-actions">
-      <form class="update-card" method="post" action="{{ url_for('apply_release_update') }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <strong>Install latest release</strong>
-        <span>Downloads and installs the latest official GitHub release ZIP directly. This is the recommended update method for normal live systems.</span>
-        <button class="primary-button" type="submit" title="Install latest official release">Install latest release</button>
-      </form>
-
       <form class="update-card" method="post" action="{{ url_for('apply_zip_update') }}" enctype="multipart/form-data">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <strong>Upload release ZIP</strong>

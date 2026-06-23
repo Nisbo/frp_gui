@@ -764,6 +764,69 @@ code {
   margin-top: 18px;
 }
 
+.release-notes {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.release-note {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+}
+
+.release-note-head {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.release-note-head strong {
+  color: var(--ink);
+}
+
+.release-note-body {
+  color: var(--ink);
+  font-size: .92rem;
+  line-height: 1.55;
+}
+
+.release-note-body.empty {
+  color: var(--muted);
+}
+
+.release-note-body > :first-child {
+  margin-top: 0;
+}
+
+.release-note-body > :last-child {
+  margin-bottom: 0;
+}
+
+.release-note-body h1,
+.release-note-body h2,
+.release-note-body h3 {
+  margin: 14px 0 8px;
+  font-size: 1rem;
+}
+
+.release-note-body ul,
+.release-note-body ol {
+  padding-left: 20px;
+}
+
+.release-note-body pre {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--muted) 10%, transparent);
+  padding: 12px;
+}
+
 .compact-actions {
   grid-template-columns: minmax(0, 1fr);
 }

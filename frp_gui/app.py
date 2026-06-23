@@ -21,7 +21,7 @@ from .config_io import (
     write_ini,
 )
 from .network import NetworkConfig, check_network, render_nginx_config, test_nginx_config, write_nginx_config
-from .updates import check_for_update
+from .updates import check_for_update, update_status_to_dict
 from .version import APP_NAME, APP_VERSION, REPO_URL
 
 
@@ -254,15 +254,7 @@ def create_app() -> Flask:
     @app.post("/settings/check-update")
     def check_update():
         status = check_for_update()
-        session["update_status"] = {
-            "current_version": status.current_version,
-            "latest_version": status.latest_version,
-            "update_available": status.update_available,
-            "release_url": status.release_url,
-            "zipball_url": status.zipball_url,
-            "error": status.error,
-            "no_releases": status.no_releases,
-        }
+        session["update_status"] = update_status_to_dict(status)
         if status.error:
             flash("Update check failed. See details below.", "error")
         elif status.no_releases:
@@ -283,15 +275,7 @@ def create_app() -> Flask:
     @app.post("/settings/update/release")
     def apply_release_update():
         status = check_for_update(timeout=15)
-        session["update_status"] = {
-            "current_version": status.current_version,
-            "latest_version": status.latest_version,
-            "update_available": status.update_available,
-            "release_url": status.release_url,
-            "zipball_url": status.zipball_url,
-            "error": status.error,
-            "no_releases": status.no_releases,
-        }
+        session["update_status"] = update_status_to_dict(status)
         if status.error:
             flash("Release update failed because the update check failed.", "error")
             return redirect(url_for("settings", tab="updates"))

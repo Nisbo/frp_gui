@@ -1,4 +1,5 @@
 APP_NAME = "FRP Gui"
-APP_VERSION = "0.1.3"
+APP_VERSION = "0.1.4"
 REPO_URL = "https://github.com/Nisbo/frp_gui"
 RELEASES_API_URL = "https://api.github.com/repos/Nisbo/frp_gui/releases/latest"
+RELEASES_LIST_API_URL = "https://api.github.com/repos/Nisbo/frp_gui/releases?per_page=20"
