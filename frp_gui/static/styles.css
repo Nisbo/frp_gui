@@ -247,6 +247,25 @@ h2 {
   text-transform: uppercase;
 }
 
+.service-controls {
+  display: grid;
+  gap: 10px;
+}
+
+.service-runtime-actions {
+  align-items: flex-start;
+}
+
+.systemd-toggle-row {
+  justify-content: space-between;
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+
+.systemd-toggle-row > span {
+  margin-right: auto;
+}
+
 .service-action-group {
   justify-content: flex-end;
 }

@@ -126,10 +126,11 @@ def create_app() -> Flask:
             "index.html",
             config=config,
             frpc_status=_service_status(app),
-            gui_status=_systemd_status(app.config["FRP_GUI_SERVICE"]),
+            gui_running_label=f"{APP_VERSION} running",
             config_path=Path(app.config["FRP_CONFIG_PATH"]),
             service_control=_service_control_available(app),
             service_control_label=_service_control_label(app),
+            frpc_enabled_status=_systemd_enabled_status(app.config["FRPC_SERVICE"]),
             app_service_control=bool(shutil.which("systemctl")),
             proxy_counts=_proxy_counts(config),
             proxies_view=proxies_view,
@@ -655,6 +656,26 @@ def _systemd_status(service: str) -> str:
         )
     except OSError:
         return "Systemd unavailable"
+    return result.stdout.strip() or "unknown"
+
+
+def _systemd_enabled_status(service: str) -> str:
+    if not service:
+        return "unknown"
+
+    systemctl = shutil.which("systemctl")
+    if not systemctl:
+        return "unknown"
+
+    try:
+        result = subprocess.run(
+            [systemctl, "is-enabled", service],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except OSError:
+        return "unknown"
     return result.stdout.strip() or "unknown"
 
 
