@@ -10,7 +10,15 @@ from urllib.parse import quote
 
 from flask import Flask, flash, redirect, render_template, request, send_file, session, url_for
 
-from .app_updates import update_from_git, update_from_release_zip, update_from_zip, update_status
+from .app_updates import (
+    delete_app_backup,
+    list_app_backups,
+    restore_app_backup,
+    update_from_git,
+    update_from_release_zip,
+    update_from_zip,
+    update_status,
+)
 from .backups import create_backup, delete_backup, get_backup, list_backups, read_backup_content, restore_backup
 from .config_io import (
     FrpConfig,
@@ -70,6 +78,12 @@ def create_app() -> Flask:
         if "csrf_token" not in session:
             session["csrf_token"] = secrets.token_urlsafe(32)
         diagnostics = session.pop("diagnostics", None)
+        app_update_pending_restart = session.get("app_update_pending_restart", False)
+        pending_version = session.get("app_update_pending_version")
+        if app_update_pending_restart and pending_version and pending_version == APP_VERSION:
+            session.pop("app_update_pending_restart", None)
+            session.pop("app_update_pending_version", None)
+            app_update_pending_restart = False
         return {
             "app_name": APP_NAME,
             "app_version": APP_VERSION,
@@ -78,6 +92,7 @@ def create_app() -> Flask:
             "diagnostics": diagnostics,
             "restart_required": session.get("restart_required", False),
             "frpc_service_control": _service_control_available(app),
+            "app_update_pending_restart": app_update_pending_restart,
         }
 
     @app.after_request
@@ -168,6 +183,7 @@ def create_app() -> Flask:
             update_status=session.pop("update_status", None),
             app_update_status=update_status(Path(app.root_path).parent),
             app_update_result=session.pop("app_update_result", None),
+            app_update_backups=list_app_backups(Path(app.root_path).parent),
         )
 
     @app.post("/settings")
@@ -274,6 +290,8 @@ def create_app() -> Flask:
     def apply_git_update():
         result = update_from_git(Path(app.root_path).parent)
         _store_app_update_result(result)
+        if result.ok:
+            session["app_update_pending_restart"] = True
         flash(result.message, "success" if result.ok else "error")
         return redirect(url_for("settings", tab="updates"))
 
@@ -296,6 +314,14 @@ def create_app() -> Flask:
 
         result = update_from_release_zip(Path(app.root_path).parent, status.zipball_url, status.latest_version)
         _store_app_update_result(result)
+        if result.ok:
+            session["app_update_pending_restart"] = True
+            session["app_update_pending_version"] = status.latest_version
+            session["update_status"] = {
+                **update_status_to_dict(status),
+                "update_available": False,
+                "release_notes": [],
+            }
         flash(result.message, "success" if result.ok else "error")
         return redirect(url_for("settings", tab="updates"))
 
@@ -311,7 +337,29 @@ def create_app() -> Flask:
 
         result = update_from_zip(Path(app.root_path).parent, upload.stream)
         _store_app_update_result(result)
+        if result.ok:
+            session["app_update_pending_restart"] = True
         flash(result.message, "success" if result.ok else "error")
+        return redirect(url_for("settings", tab="updates"))
+
+    @app.post("/settings/update/backups/<backup_id>/restore")
+    def restore_app_update_backup(backup_id: str):
+        result = restore_app_backup(Path(app.root_path).parent, backup_id)
+        _store_app_update_result(result)
+        if result.ok:
+            session["app_update_pending_restart"] = True
+        flash(result.message, "success" if result.ok else "error")
+        return redirect(url_for("settings", tab="updates"))
+
+    @app.post("/settings/update/backups/<backup_id>/delete")
+    def delete_app_update_backup(backup_id: str):
+        try:
+            delete_app_backup(Path(app.root_path).parent, backup_id)
+        except (OSError, ValueError) as exc:
+            flash(f"App update backup delete failed: {exc}", "error")
+            return redirect(url_for("settings", tab="updates"))
+
+        flash("App update backup deleted.", "success")
         return redirect(url_for("settings", tab="updates"))
 
     @app.post("/settings/update/restart-app")
@@ -322,6 +370,8 @@ def create_app() -> Flask:
             return redirect(url_for("settings", tab="updates"))
 
         service = app.config["FRP_GUI_SERVICE"]
+        session.pop("app_update_pending_restart", None)
+        session.pop("app_update_pending_version", None)
         command = f"sleep 1; exec {shlex.quote(systemctl)} restart {shlex.quote(service)}"
         subprocess.Popen(["/bin/sh", "-c", command], start_new_session=True)
         flash("FRP Gui restart requested. Reload the page in a few seconds.", "success")
@@ -377,7 +427,8 @@ def create_app() -> Flask:
             flash(f"Restore failed: {exc}", "error")
             return redirect(url_for("backups"))
 
-        flash("Backup restored.", "success")
+        _mark_restart_required()
+        flash("Backup restored. Restart FRP Client for the restored config to take effect.", "success")
         return redirect(url_for("index"))
 
     @app.post("/backups/<backup_id>/delete")

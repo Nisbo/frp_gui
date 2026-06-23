@@ -185,9 +185,11 @@
           {% endif %}
         </strong>
       </div>
-      <form method="post" action="{{ url_for('apply_release_update') if update_status and update_status.update_available else url_for('check_update') }}">
+      <form method="post" action="{% if app_update_pending_restart %}{{ url_for('restart_app_service') }}{% elif update_status and update_status.update_available %}{{ url_for('apply_release_update') }}{% else %}{{ url_for('check_update') }}{% endif %}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        {% if update_status and update_status.update_available %}
+        {% if app_update_pending_restart %}
+          <button class="primary-button" type="submit" title="Restart FRP Gui">Restart FRP Gui</button>
+        {% elif update_status and update_status.update_available %}
           <button class="primary-button" type="submit" title="Install latest official release">Install update</button>
         {% else %}
           <button class="primary-button" type="submit" title="Check official GitHub releases">Check releases</button>
@@ -250,9 +252,16 @@
       </div>
     {% endif %}
 
+    {% if app_update_pending_restart %}
+      <div class="coming-soon">
+        <strong>FRP Gui restart required</strong>
+        <span>An app update or app backup restore has changed files on disk. Restart FRP Gui before installing another release.</span>
+      </div>
+    {% endif %}
+
     <div class="update-section-title">
       <strong>Official release update</strong>
-      <span>Recommended for live systems. FRP Gui compares your installed version with the latest GitHub release tag, for example <code>0.1.3</code>.</span>
+      <span>Recommended for live systems. FRP Gui compares your installed version with the latest GitHub release tag, for example <code>{{ app_version }}</code>.</span>
     </div>
 
     <div class="update-actions">
@@ -320,6 +329,47 @@
     <div class="coming-soon">
       <strong>Restart after update</strong>
       <span>Updated files are written to disk, but the running Python process keeps the old code until FRP Gui is restarted.</span>
+    </div>
+
+    <div class="update-section-title">
+      <strong>App update backups</strong>
+      <span>Created automatically before Git, release ZIP or manual ZIP updates. They are stored under <code>data/app-updates/backups</code>.</span>
+    </div>
+
+    <div class="table-wrap compact-table">
+      <table>
+        <thead>
+          <tr>
+            <th>Created</th>
+            <th>Path</th>
+            <th>Size</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for backup in app_update_backups %}
+            <tr>
+              <td>{{ backup.created_at }}</td>
+              <td><code>{{ backup.path }}</code></td>
+              <td>{{ backup.size }} B</td>
+              <td class="row-actions">
+                <form method="post" action="{{ url_for('restore_app_update_backup', backup_id=backup.backup_id) }}" data-confirm="Restore this app update backup? A safety backup will be created first.">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                  <button class="ghost-button" type="submit" title="Restore app update backup">Restore</button>
+                </form>
+                <form method="post" action="{{ url_for('delete_app_update_backup', backup_id=backup.backup_id) }}" data-confirm="Delete this app update backup?">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                  <button class="danger-button" type="submit" title="Delete app update backup">Delete</button>
+                </form>
+              </td>
+            </tr>
+          {% else %}
+            <tr>
+              <td colspan="4" class="empty">No app update backups yet.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
   </section>
   {% elif active_tab == "migration" %}

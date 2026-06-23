@@ -26,6 +26,14 @@ class AppUpdateResult:
     backup_path: Path | None = None
 
 
+@dataclass
+class AppBackupEntry:
+    backup_id: str
+    path: Path
+    created_at: str
+    size: int
+
+
 def update_status(app_root: Path) -> dict[str, str | bool | None]:
     git = shutil.which("git")
     status: dict[str, str | bool | None] = {
@@ -137,8 +145,8 @@ def update_from_release_zip(app_root: Path, zip_url: str, version: str, timeout:
 
 
 def create_app_backup(app_root: Path) -> Path:
-    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    backup_root = app_root / "data" / "app-updates" / "backups" / timestamp
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
+    backup_root = _app_backup_root(app_root) / timestamp
     backup_root.mkdir(parents=True, exist_ok=False)
 
     for directory in PROJECT_DIRS:
@@ -152,6 +160,82 @@ def create_app_backup(app_root: Path) -> Path:
             shutil.copy2(source, backup_root / filename)
 
     return backup_root
+
+
+def list_app_backups(app_root: Path) -> list[AppBackupEntry]:
+    backup_root = _app_backup_root(app_root)
+    if not backup_root.exists():
+        return []
+
+    entries: list[AppBackupEntry] = []
+    for path in backup_root.iterdir():
+        if not path.is_dir():
+            continue
+        entries.append(
+            AppBackupEntry(
+                backup_id=path.name,
+                path=path,
+                created_at=_format_backup_id(path.name),
+                size=_directory_size(path),
+            )
+        )
+    return sorted(entries, key=lambda entry: entry.backup_id, reverse=True)
+
+
+def restore_app_backup(app_root: Path, backup_id: str) -> AppUpdateResult:
+    try:
+        backup_path = _app_backup_path(app_root, backup_id)
+    except ValueError as exc:
+        return AppUpdateResult(False, str(exc))
+    if not backup_path.exists() or not backup_path.is_dir():
+        return AppUpdateResult(False, f"App update backup not found: {backup_id}")
+
+    safety_backup = create_app_backup(app_root)
+    details = [f"Safety backup created: {safety_backup}", f"Restored from: {backup_path}"]
+    try:
+        copied = _copy_project_files(backup_path, app_root)
+    except (OSError, ValueError) as exc:
+        return AppUpdateResult(False, f"App backup restore failed: {exc}", details, safety_backup)
+    details.extend(f"Restored: {item}" for item in copied)
+    return AppUpdateResult(True, "App backup restored. Restart FRP Gui to run the restored code.", details, safety_backup)
+
+
+def delete_app_backup(app_root: Path, backup_id: str) -> None:
+    backup_path = _app_backup_path(app_root, backup_id)
+    if not backup_path.exists() or not backup_path.is_dir():
+        raise FileNotFoundError(f"App update backup not found: {backup_id}")
+    shutil.rmtree(backup_path)
+
+
+def _app_backup_root(app_root: Path) -> Path:
+    return app_root / "data" / "app-updates" / "backups"
+
+
+def _app_backup_path(app_root: Path, backup_id: str) -> Path:
+    if not backup_id or "/" in backup_id or "\\" in backup_id or backup_id in {".", ".."}:
+        raise ValueError("Invalid app backup id.")
+    backup_root = _app_backup_root(app_root).resolve()
+    backup_path = (backup_root / backup_id).resolve()
+    if not backup_path.is_relative_to(backup_root):
+        raise ValueError("Invalid app backup path.")
+    return backup_path
+
+
+def _directory_size(path: Path) -> int:
+    total = 0
+    for item in path.rglob("*"):
+        if item.is_file():
+            total += item.stat().st_size
+    return total
+
+
+def _format_backup_id(backup_id: str) -> str:
+    for pattern in ("%Y%m%d-%H%M%S-%f", "%Y%m%d-%H%M%S"):
+        try:
+            return datetime.strptime(backup_id, pattern).strftime("%Y-%m-%d %H:%M:%S")
+        except ValueError:
+            continue
+    return backup_id
 
 
 def _safe_extract_zip(zip_stream: BinaryIO, destination: Path) -> None:
