@@ -16,6 +16,7 @@ from typing import BinaryIO
 
 PROJECT_DIRS = ("frp_gui", "scripts", "sample")
 PROJECT_FILES = ("run.py", "requirements.txt", "README.md", ".gitignore")
+APP_BACKUP_META_FILE = "backup-meta.txt"
 
 
 @dataclass
@@ -32,6 +33,8 @@ class AppBackupEntry:
     path: Path
     created_at: str
     size: int
+    reason: str
+    comment: str
 
 
 def update_status(app_root: Path) -> dict[str, str | bool | None]:
@@ -83,7 +86,7 @@ def update_from_git(app_root: Path) -> AppUpdateResult:
     if not status["git_ready"]:
         return AppUpdateResult(False, str(status["message"] or "Git checkout is not ready for updates."))
 
-    backup_path = create_app_backup(app_root)
+    backup_path = create_app_backup(app_root, "Before Git update", "Created automatically before running git pull.")
     details = [f"Backup created: {backup_path}"]
 
     fetch = _run([git, "fetch", "--tags", "--prune", "origin"], app_root)
@@ -99,7 +102,7 @@ def update_from_git(app_root: Path) -> AppUpdateResult:
     return AppUpdateResult(True, "Git update completed. Restart FRP Gui to run the new code.", details, backup_path)
 
 
-def update_from_zip(app_root: Path, zip_stream: BinaryIO) -> AppUpdateResult:
+def update_from_zip(app_root: Path, zip_stream: BinaryIO, backup_reason: str = "Before ZIP update", backup_comment: str = "Created automatically before installing an uploaded ZIP.") -> AppUpdateResult:
     with tempfile.TemporaryDirectory(prefix="frp-gui-update-") as tmp_name:
         extract_dir = Path(tmp_name) / "extract"
         extract_dir.mkdir()
@@ -109,7 +112,7 @@ def update_from_zip(app_root: Path, zip_stream: BinaryIO) -> AppUpdateResult:
         except (OSError, ValueError, zipfile.BadZipFile) as exc:
             return AppUpdateResult(False, f"ZIP update failed validation: {exc}")
 
-        backup_path = create_app_backup(app_root)
+        backup_path = create_app_backup(app_root, backup_reason, backup_comment)
         details = [
             f"Backup created: {backup_path}",
             f"Source root detected: {source_root.name}",
@@ -137,14 +140,19 @@ def update_from_release_zip(app_root: Path, zip_url: str, version: str, timeout:
     except (urllib.error.URLError, TimeoutError, OSError) as exc:
         return AppUpdateResult(False, f"Release download failed: {exc}")
 
-    result = update_from_zip(app_root, BytesIO(zip_data))
+    result = update_from_zip(
+        app_root,
+        BytesIO(zip_data),
+        backup_reason=f"Before installing release {version}",
+        backup_comment=f"Created automatically before updating to release {version}.",
+    )
     if result.ok:
         result.message = f"Release {version} installed. Restart FRP Gui to run the new code."
     result.details.insert(0, f"Downloaded official release ZIP: {version}")
     return result
 
 
-def create_app_backup(app_root: Path) -> Path:
+def create_app_backup(app_root: Path, reason: str = "Manual app backup", comment: str = "") -> Path:
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
     backup_root = _app_backup_root(app_root) / timestamp
     backup_root.mkdir(parents=True, exist_ok=False)
@@ -159,6 +167,7 @@ def create_app_backup(app_root: Path) -> Path:
         if source.exists():
             shutil.copy2(source, backup_root / filename)
 
+    _write_backup_meta(backup_root, reason, comment)
     return backup_root
 
 
@@ -171,12 +180,15 @@ def list_app_backups(app_root: Path) -> list[AppBackupEntry]:
     for path in backup_root.iterdir():
         if not path.is_dir():
             continue
+        meta = _read_backup_meta(path)
         entries.append(
             AppBackupEntry(
                 backup_id=path.name,
                 path=path,
                 created_at=_format_backup_id(path.name),
                 size=_directory_size(path),
+                reason=meta["reason"],
+                comment=meta["comment"],
             )
         )
     return sorted(entries, key=lambda entry: entry.backup_id, reverse=True)
@@ -190,7 +202,7 @@ def restore_app_backup(app_root: Path, backup_id: str) -> AppUpdateResult:
     if not backup_path.exists() or not backup_path.is_dir():
         return AppUpdateResult(False, f"App update backup not found: {backup_id}")
 
-    safety_backup = create_app_backup(app_root)
+    safety_backup = create_app_backup(app_root, "Before app backup restore", f"Created automatically before restoring app backup {backup_id}.")
     details = [f"Safety backup created: {safety_backup}", f"Restored from: {backup_path}"]
     try:
         copied = _copy_project_files(backup_path, app_root)
@@ -227,6 +239,33 @@ def _directory_size(path: Path) -> int:
         if item.is_file():
             total += item.stat().st_size
     return total
+
+
+def _write_backup_meta(path: Path, reason: str, comment: str) -> None:
+    content = "\n".join(
+        (
+            f"reason={_clean_meta_value(reason)}",
+            f"comment={_clean_meta_value(comment)}",
+        )
+    )
+    (path / APP_BACKUP_META_FILE).write_text(content + "\n", encoding="utf-8")
+
+
+def _read_backup_meta(path: Path) -> dict[str, str]:
+    meta = {"reason": "Unknown", "comment": ""}
+    meta_path = path / APP_BACKUP_META_FILE
+    if not meta_path.exists():
+        return meta
+
+    for line in meta_path.read_text(encoding="utf-8", errors="replace").splitlines():
+        key, separator, value = line.partition("=")
+        if separator and key in meta:
+            meta[key] = value.strip()
+    return meta
+
+
+def _clean_meta_value(value: str) -> str:
+    return " ".join(str(value).split())
 
 
 def _format_backup_id(backup_id: str) -> str:

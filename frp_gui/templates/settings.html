@@ -333,15 +333,27 @@
 
     <div class="update-section-title">
       <strong>App update backups</strong>
-      <span>Created automatically before Git, release ZIP or manual ZIP updates. They are stored under <code>data/app-updates/backups</code>.</span>
+      <span>Created manually here or automatically before Git, release ZIP, manual ZIP updates and app backup restores. They are stored under <code>data/app-updates/backups</code>.</span>
     </div>
+
+    <form class="form-grid backup-create" method="post" action="{{ url_for('create_app_update_backup') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label>
+        Backup comment
+        <input name="comment" placeholder="Before changing update settings">
+      </label>
+      <div class="form-actions inline-actions">
+        <button class="primary-button" type="submit" title="Create app backup">Create app backup</button>
+      </div>
+    </form>
 
     <div class="table-wrap compact-table">
       <table>
         <thead>
           <tr>
             <th>Created</th>
-            <th>Path</th>
+            <th>Reason</th>
+            <th>Comment</th>
             <th>Size</th>
             <th></th>
           </tr>
@@ -350,7 +362,8 @@
           {% for backup in app_update_backups %}
             <tr>
               <td>{{ backup.created_at }}</td>
-              <td><code>{{ backup.path }}</code></td>
+              <td>{{ backup.reason }}</td>
+              <td>{{ backup.comment or "-" }}</td>
               <td>{{ backup.size }} B</td>
               <td class="row-actions">
                 <form method="post" action="{{ url_for('restore_app_update_backup', backup_id=backup.backup_id) }}" data-confirm="Restore this app update backup? A safety backup will be created first.">
@@ -365,7 +378,7 @@
             </tr>
           {% else %}
             <tr>
-              <td colspan="4" class="empty">No app update backups yet.</td>
+              <td colspan="5" class="empty">No app update backups yet.</td>
             </tr>
           {% endfor %}
         </tbody>

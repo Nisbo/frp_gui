@@ -11,6 +11,7 @@ from urllib.parse import quote
 from flask import Flask, flash, redirect, render_template, request, send_file, session, url_for
 
 from .app_updates import (
+    create_app_backup,
     delete_app_backup,
     list_app_backups,
     restore_app_backup,
@@ -340,6 +341,18 @@ def create_app() -> Flask:
         if result.ok:
             session["app_update_pending_restart"] = True
         flash(result.message, "success" if result.ok else "error")
+        return redirect(url_for("settings", tab="updates"))
+
+    @app.post("/settings/update/backups")
+    def create_app_update_backup():
+        comment = request.form.get("comment", "").strip()
+        try:
+            backup_path = create_app_backup(Path(app.root_path).parent, "Manual app backup", comment)
+        except OSError as exc:
+            flash(f"App backup failed: {exc}", "error")
+            return redirect(url_for("settings", tab="updates"))
+
+        flash(f"App backup created: {backup_path}", "success")
         return redirect(url_for("settings", tab="updates"))
 
     @app.post("/settings/update/backups/<backup_id>/restore")
