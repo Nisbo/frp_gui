@@ -309,6 +309,37 @@
     {% endif %}
 
     <div class="update-section-title">
+      <strong>FRP Client update check</strong>
+      <span>Checks the installed <code>frpc</code> version against the latest official FRP release from <code>fatedier/frp</code>. This only reports availability and does not install FRP updates.</span>
+    </div>
+
+    <div class="update-actions compact-actions">
+      <form class="update-card" method="post" action="{{ url_for('check_frpc_update') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <strong>Check FRP Client</strong>
+        {% if frpc_update_status %}
+          <span>
+            Installed: <code>{{ frpc_update_status.installed }}</code>
+            &nbsp; Latest: <code>{{ frpc_update_status.latest }}</code>
+            {% if frpc_update_status.error %}
+              &nbsp; Check failed: {{ frpc_update_status.error }}
+            {% elif frpc_update_status.update_available %}
+              &nbsp; Update available.
+              {% if frpc_update_status.release_url %}
+                <a class="table-link" href="{{ frpc_update_status.release_url }}" target="_blank" rel="noopener noreferrer">Open FRP release</a>
+              {% endif %}
+            {% else %}
+              &nbsp; Up to date.
+            {% endif %}
+          </span>
+        {% else %}
+          <span>Runs <code>frpc --version</code> locally and checks GitHub for the latest FRP release.</span>
+        {% endif %}
+        <button class="ghost-button" type="submit" title="Check FRP Client version">Check FRP Client</button>
+      </form>
+    </div>
+
+    <div class="update-section-title">
       <strong>Official release update</strong>
       <span>Recommended for live systems. Git installations are moved to the official release tag. Non-git installations use the release ZIP fallback.</span>
     </div>

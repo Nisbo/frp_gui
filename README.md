@@ -6,7 +6,7 @@ usually `frpc.ini`.
 Current app version:
 
 ```text
-0.1.15
+0.1.16
 ```
 
 ## Quick Install On Debian 12
@@ -106,7 +106,7 @@ Recommended release workflow:
 ```
 
 The release check compares your installed version with the latest GitHub
-release tag, for example `0.1.15`. When updates are available, the GUI shows
+release tag, for example `0.1.16`. When updates are available, the GUI shows
 release notes for every official release newer than your installed version.
 
 If the server cannot download the release directly, use the manual fallback:
@@ -251,6 +251,7 @@ systemctl reload nginx
 - preview, restore and delete backups
 - start, stop, restart, enable and disable the configured systemd service
 - check GitHub releases
+- check the installed FRP Client version against the latest official FRP release
 - update by release ZIP upload
 - advanced git branch update for testing systems
 - password login

@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import json
 import os
+import re
 import secrets
 import shlex
 import shutil
 import subprocess
+import urllib.error
+import urllib.request
 from pathlib import Path
 from urllib.parse import quote
 
@@ -144,6 +148,7 @@ def create_app() -> Flask:
             "index.html",
             config=config,
             frpc_status=_service_status(app),
+            frpc_version=_frpc_version(app),
             gui_running_label=f"{APP_VERSION} running",
             config_path=Path(app.config["FRP_CONFIG_PATH"]),
             service_control=_service_control_available(app),
@@ -185,6 +190,7 @@ def create_app() -> Flask:
             network=_network_config(app),
             nginx_preview=render_nginx_config(_network_config(app)),
             update_status=session.pop("update_status", None),
+            frpc_update_status=session.pop("frpc_update_status", None),
             app_update_status=update_status(Path(app.root_path).parent),
             app_update_result=session.pop("app_update_result", None),
             app_update_backups=list_app_backups(Path(app.root_path).parent),
@@ -216,6 +222,18 @@ def create_app() -> Flask:
         app.config["ALLOW_SYSTEMCTL"] = request.form.get("allow_systemctl") == "on"
         flash("Runtime settings updated for this app process.", "success")
         return redirect(url_for("settings", tab="general"))
+
+    @app.post("/settings/check-frpc-update")
+    def check_frpc_update():
+        status = _frpc_update_status(app)
+        session["frpc_update_status"] = status
+        if status["error"]:
+            flash("FRP Client update check failed. See details below.", "error")
+        elif status["update_available"]:
+            flash("A newer FRP Client version is available.", "warning")
+        else:
+            flash("FRP Client is running the latest known version.", "success")
+        return redirect(url_for("settings", tab="updates"))
 
     @app.post("/settings/security/password")
     def change_password():
@@ -785,6 +803,71 @@ def _systemd_enabled_status(service: str) -> str:
     except OSError:
         return "unknown"
     return result.stdout.strip() or "unknown"
+
+
+def _frpc_version(app: Flask) -> str | None:
+    binary = _resolve_binary(app.config["FRPC_BINARY"])
+    if not binary:
+        return None
+
+    try:
+        result = subprocess.run(
+            [str(binary), "--version"],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+
+    if result.returncode != 0:
+        return None
+    output = (result.stdout or result.stderr).strip()
+    return output.splitlines()[0].strip() if output else None
+
+
+def _frpc_update_status(app: Flask) -> dict[str, str | bool | None]:
+    installed = _frpc_version(app)
+    latest = None
+    error = None
+    try:
+        request = urllib.request.Request(
+            "https://api.github.com/repos/fatedier/frp/releases/latest",
+            headers={
+                "Accept": "application/vnd.github+json",
+                "User-Agent": "frp-gui-frpc-update-check",
+            },
+        )
+        with urllib.request.urlopen(request, timeout=8) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+        latest = str(payload.get("tag_name") or payload.get("name") or "").strip().removeprefix("v")
+        if not latest:
+            error = "Latest FRP release did not include a version tag."
+    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError) as exc:
+        error = str(exc)
+
+    update_available = bool(installed and latest and _version_key(latest) > _version_key(installed))
+    return {
+        "installed": installed or "Unknown",
+        "latest": latest or "Unknown",
+        "update_available": update_available,
+        "error": error,
+        "release_url": f"https://github.com/fatedier/frp/releases/tag/v{latest}" if latest else None,
+    }
+
+
+def _resolve_binary(binary: str) -> Path | None:
+    binary_path = Path(binary)
+    if binary_path.exists() and binary_path.is_file():
+        return binary_path
+    found = shutil.which(binary)
+    return Path(found) if found else None
+
+
+def _version_key(value: str) -> tuple[int, ...]:
+    parts = re.findall(r"\d+", value)
+    return tuple(int(part) for part in parts) or (0,)
 
 
 def _proxy_counts(config: FrpConfig) -> dict[str, int]:

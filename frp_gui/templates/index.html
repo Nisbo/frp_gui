@@ -16,7 +16,7 @@
       <div class="operation-head">
         <div>
           <span>FRP Client (systemd)</span>
-          <strong>{{ frpc_status }}</strong>
+          <strong>{{ frpc_status }}{% if frpc_version %} · {{ frpc_version }}{% endif %}</strong>
         </div>
       </div>
       <div class="service-controls">
