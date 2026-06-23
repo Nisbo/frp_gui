@@ -222,20 +222,21 @@
 
     <div class="update-section-title">
       <strong>Official release update</strong>
-      <span>Recommended for live systems. FRP Gui compares your installed version with the latest GitHub release tag, for example <code>v0.1.2</code>.</span>
+      <span>Recommended for live systems. FRP Gui compares your installed version with the latest GitHub release tag, for example <code>0.1.3</code>.</span>
     </div>
 
     <div class="update-actions">
-      <div class="update-card">
-        <strong>GitHub release</strong>
-        <span>Open the latest release page, download the release ZIP, then upload it here. This keeps updates tied to published versions instead of unreleased branch changes.</span>
-        <a class="primary-button button-link" href="{{ update_status.release_url if update_status and update_status.release_url else repo_url ~ '/releases' }}" target="_blank" rel="noopener noreferrer">Open releases</a>
-      </div>
+      <form class="update-card" method="post" action="{{ url_for('apply_release_update') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <strong>Install latest release</strong>
+        <span>Downloads and installs the latest official GitHub release ZIP directly. This is the recommended update method for normal live systems.</span>
+        <button class="primary-button" type="submit" title="Install latest official release">Install latest release</button>
+      </form>
 
       <form class="update-card" method="post" action="{{ url_for('apply_zip_update') }}" enctype="multipart/form-data">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <strong>Upload release ZIP</strong>
-        <span>Installs a ZIP with the same project structure as the GitHub release archive. A backup is created before files are replaced.</span>
+        <span>Manual fallback. Upload the official ZIP from a GitHub release when the server cannot download it directly. A backup is created before files are replaced.</span>
         <input name="update_zip" type="file" accept=".zip,application/zip" required>
         <button class="primary-button" type="submit" title="Upload release ZIP">Upload ZIP</button>
       </form>

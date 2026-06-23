@@ -360,10 +360,6 @@ button:disabled {
   background: var(--accent-strong);
 }
 
-.button-link {
-  text-decoration: none;
-}
-
 .ghost-button,
 .icon-button {
   background: var(--panel);

@@ -10,7 +10,7 @@ from urllib.parse import quote
 
 from flask import Flask, flash, redirect, render_template, request, session, url_for
 
-from .app_updates import update_from_git, update_from_zip, update_status
+from .app_updates import update_from_git, update_from_release_zip, update_from_zip, update_status
 from .backups import create_backup, delete_backup, get_backup, list_backups, read_backup_content, restore_backup
 from .config_io import (
     FrpConfig,
@@ -259,6 +259,7 @@ def create_app() -> Flask:
             "latest_version": status.latest_version,
             "update_available": status.update_available,
             "release_url": status.release_url,
+            "zipball_url": status.zipball_url,
             "error": status.error,
             "no_releases": status.no_releases,
         }
@@ -275,6 +276,36 @@ def create_app() -> Flask:
     @app.post("/settings/update/git")
     def apply_git_update():
         result = update_from_git(Path(app.root_path).parent)
+        _store_app_update_result(result)
+        flash(result.message, "success" if result.ok else "error")
+        return redirect(url_for("settings", tab="updates"))
+
+    @app.post("/settings/update/release")
+    def apply_release_update():
+        status = check_for_update(timeout=15)
+        session["update_status"] = {
+            "current_version": status.current_version,
+            "latest_version": status.latest_version,
+            "update_available": status.update_available,
+            "release_url": status.release_url,
+            "zipball_url": status.zipball_url,
+            "error": status.error,
+            "no_releases": status.no_releases,
+        }
+        if status.error:
+            flash("Release update failed because the update check failed.", "error")
+            return redirect(url_for("settings", tab="updates"))
+        if status.no_releases:
+            flash("No GitHub releases have been published yet.", "warning")
+            return redirect(url_for("settings", tab="updates"))
+        if not status.update_available:
+            flash("No newer official release is available.", "success")
+            return redirect(url_for("settings", tab="updates"))
+        if not status.zipball_url or not status.latest_version:
+            flash("Latest release does not provide a downloadable ZIP archive.", "error")
+            return redirect(url_for("settings", tab="updates"))
+
+        result = update_from_release_zip(Path(app.root_path).parent, status.zipball_url, status.latest_version)
         _store_app_update_result(result)
         flash(result.message, "success" if result.ok else "error")
         return redirect(url_for("settings", tab="updates"))

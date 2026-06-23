@@ -6,7 +6,7 @@ usually `frpc.ini`.
 Current app version:
 
 ```text
-0.1.2
+0.1.3
 ```
 
 ## Quick Install On Debian 12
@@ -96,14 +96,16 @@ Recommended release workflow:
 
 ```text
 1. Check for updates in Settings -> Updates
-2. Open the latest GitHub release
-3. Download the release ZIP
-4. Upload the ZIP in Settings -> Updates
-5. Restart FRP Gui from the same page
+2. Install the latest release directly from the GUI
+3. Restart FRP Gui from the same page
 ```
 
 The release check compares your installed version with the latest GitHub
-release tag, for example `v0.1.2`.
+release tag, for example `0.1.3`.
+
+If the server cannot download the release directly, use the manual fallback:
+download the official ZIP from the GitHub release page and upload it in
+`Settings -> Updates -> Upload release ZIP`.
 
 Advanced git updates are still available when FRP Gui was installed with
 `git clone`:

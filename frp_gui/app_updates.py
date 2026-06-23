@@ -4,9 +4,12 @@ import shutil
 import stat
 import subprocess
 import tempfile
+import urllib.error
+import urllib.request
 import zipfile
 from dataclasses import dataclass, field
 from datetime import datetime
+from io import BytesIO
 from pathlib import Path
 from typing import BinaryIO
 
@@ -110,6 +113,27 @@ def update_from_zip(app_root: Path, zip_stream: BinaryIO) -> AppUpdateResult:
         details.extend(f"Updated: {item}" for item in copied)
 
     return AppUpdateResult(True, "ZIP update installed. Restart FRP Gui to run the new code.", details, backup_path)
+
+
+def update_from_release_zip(app_root: Path, zip_url: str, version: str, timeout: int = 30) -> AppUpdateResult:
+    request = urllib.request.Request(
+        zip_url,
+        headers={
+            "Accept": "application/zip",
+            "User-Agent": "frp-gui-release-update",
+        },
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            zip_data = response.read()
+    except (urllib.error.URLError, TimeoutError, OSError) as exc:
+        return AppUpdateResult(False, f"Release download failed: {exc}")
+
+    result = update_from_zip(app_root, BytesIO(zip_data))
+    if result.ok:
+        result.message = f"Release {version} installed. Restart FRP Gui to run the new code."
+    result.details.insert(0, f"Downloaded official release ZIP: {version}")
+    return result
 
 
 def create_app_backup(app_root: Path) -> Path:

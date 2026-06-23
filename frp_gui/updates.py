@@ -15,6 +15,7 @@ class UpdateStatus:
     latest_version: str | None
     update_available: bool
     release_url: str | None
+    zipball_url: str | None
     error: str | None = None
     no_releases: bool = False
 
@@ -37,6 +38,7 @@ def check_for_update(timeout: int = 5) -> UpdateStatus:
                 latest_version=None,
                 update_available=False,
                 release_url=None,
+                zipball_url=None,
                 no_releases=True,
             )
         return UpdateStatus(
@@ -44,6 +46,7 @@ def check_for_update(timeout: int = 5) -> UpdateStatus:
             latest_version=None,
             update_available=False,
             release_url=None,
+            zipball_url=None,
             error=str(exc),
         )
     except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
@@ -52,6 +55,7 @@ def check_for_update(timeout: int = 5) -> UpdateStatus:
             latest_version=None,
             update_available=False,
             release_url=None,
+            zipball_url=None,
             error=str(exc),
         )
 
@@ -62,6 +66,7 @@ def check_for_update(timeout: int = 5) -> UpdateStatus:
         latest_version=latest or None,
         update_available=bool(latest and _version_key(latest) > _version_key(APP_VERSION)),
         release_url=payload.get("html_url"),
+        zipball_url=payload.get("zipball_url"),
     )
 
 
