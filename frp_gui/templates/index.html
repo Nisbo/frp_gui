@@ -11,22 +11,64 @@
 {%- endmacro %}
 
 {% block content %}
-  <section class="overview">
-    <div class="metric">
-      <span>Status</span>
-      <strong>{{ status }}</strong>
+  <section class="operations-grid">
+    <div class="operation-card">
+      <div class="operation-head">
+        <div>
+          <span>FRP Client</span>
+          <strong>{{ frpc_status }}</strong>
+        </div>
+        <code>{{ config.common.get("server_addr", "-") }}:{{ config.common.get("server_port", "-") }}</code>
+      </div>
+      <div class="action-group">
+        <form method="post" action="{{ url_for('verify') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button class="ghost-button" type="submit" title="Verify config">Verify</button>
+        </form>
+        {% if service_control %}
+          {% for action in ["start", "stop", "restart", "enable", "disable"] %}
+            <form method="post" action="{{ url_for('service_action', action=action) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <button class="{% if action == 'stop' or action == 'disable' %}danger-button{% elif action == 'restart' %}primary-button{% else %}ghost-button{% endif %}" type="submit" title="{{ action|capitalize }} FRP Client">{{ action|capitalize }}</button>
+            </form>
+          {% endfor %}
+        {% else %}
+          <a class="ghost-button" href="{{ url_for('settings') }}" title="Configure service control">{{ service_control_label }}</a>
+        {% endif %}
+      </div>
     </div>
-    <div class="metric">
-      <span>Server</span>
-      <strong>{{ config.common.get("server_addr", "-") }}:{{ config.common.get("server_port", "-") }}</strong>
+
+    <div class="operation-card">
+      <div class="operation-head">
+        <div>
+          <span>FRP Gui</span>
+          <strong>{{ gui_status }}</strong>
+        </div>
+        <code>{{ app_version }}</code>
+      </div>
+      <div class="action-group">
+        {% if app_service_control %}
+          <form method="post" action="{{ url_for('restart_app_service') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button class="primary-button" type="submit" title="Restart FRP Gui">Restart</button>
+          </form>
+        {% endif %}
+        <a class="ghost-button" href="{{ url_for('settings') }}" title="Open settings">Settings</a>
+      </div>
     </div>
-    <div class="metric">
-      <span>Config</span>
-      <strong>{{ config_path }}</strong>
-    </div>
-    <div class="metric">
-      <span>Enabled</span>
-      <strong>{{ config.proxies|selectattr("enabled", "ne", "false")|list|length }} / {{ config.proxies|length }}</strong>
+
+    <div class="operation-card">
+      <div class="operation-head">
+        <div>
+          <span>Proxy entries</span>
+          <strong>{{ proxy_counts.enabled }} / {{ proxy_counts.total }} enabled</strong>
+        </div>
+        <code>{{ proxy_counts.disabled }} disabled</code>
+      </div>
+      <div class="action-group">
+        <a class="primary-button" href="{{ url_for('new_proxy') }}" title="Create new proxy">New proxy</a>
+        <a class="ghost-button" href="{{ url_for('backups') }}" title="Open backup list">Backups</a>
+      </div>
     </div>
   </section>
 
@@ -62,7 +104,7 @@
     <div class="panel-head">
       <div>
         <h2>Proxies</h2>
-        <p>Entries from the selected FRP client config.</p>
+        <p>{{ proxy_counts.enabled }} enabled, {{ proxy_counts.disabled }} disabled.</p>
       </div>
       <a class="primary-button" href="{{ url_for('new_proxy') }}" title="Create new proxy">+</a>
     </div>
@@ -134,28 +176,6 @@
       </table>
     </div>
 
-    <div class="proxy-panel-actions">
-      <div class="action-group">
-        <span>Config</span>
-        <form method="post" action="{{ url_for('verify') }}">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-          <button class="ghost-button" type="submit" title="Verify config">Verify</button>
-        </form>
-      </div>
-      <div class="action-group service-action-group">
-        <span>FRP Client service</span>
-        {% if service_control %}
-          {% for action in ["start", "stop", "restart", "enable", "disable"] %}
-            <form method="post" action="{{ url_for('service_action', action=action) }}">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-              <button class="{% if action == 'stop' or action == 'disable' %}danger-button{% elif action == 'restart' %}primary-button{% else %}ghost-button{% endif %}" type="submit" title="{{ action|capitalize }} FRP Client">{{ action|capitalize }}</button>
-            </form>
-          {% endfor %}
-        {% else %}
-          <a class="ghost-button" href="{{ url_for('settings') }}" title="Configure service control">{{ service_control_label }}</a>
-        {% endif %}
-      </div>
-    </div>
   </section>
 
   <section class="panel">

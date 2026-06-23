@@ -92,11 +92,59 @@ h2 {
   margin-bottom: 16px;
 }
 
+.operations-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
 .metric,
-.panel {
+.panel,
+.operation-card {
   background: color-mix(in srgb, var(--panel) 88%, transparent);
   border: 1px solid var(--line);
   box-shadow: var(--shadow);
+}
+
+.operation-card {
+  display: grid;
+  align-content: space-between;
+  gap: 16px;
+  min-height: 124px;
+  padding: 16px;
+  border-radius: 8px;
+}
+
+.operation-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.operation-head > div {
+  min-width: 0;
+}
+
+.operation-head span {
+  color: var(--muted);
+  font-size: .78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.operation-head strong {
+  display: block;
+  margin-top: 6px;
+  overflow-wrap: anywhere;
+  font-size: 1.22rem;
+}
+
+.operation-head code {
+  align-self: flex-start;
+  max-width: 46%;
+  overflow-wrap: anywhere;
+  text-align: right;
 }
 
 .metric {
@@ -896,8 +944,7 @@ code {
   }
 
   .topbar,
-  .panel-head,
-  .proxy-panel-actions {
+  .panel-head {
     align-items: flex-start;
     flex-direction: column;
   }
@@ -908,6 +955,7 @@ code {
   }
 
   .overview,
+  .operations-grid,
   .form-grid,
   .backup-create,
   .detail-grid,
@@ -931,5 +979,14 @@ code {
   .action-group a,
   .action-group button {
     width: 100%;
+  }
+
+  .operation-head {
+    flex-direction: column;
+  }
+
+  .operation-head code {
+    max-width: 100%;
+    text-align: left;
   }
 }

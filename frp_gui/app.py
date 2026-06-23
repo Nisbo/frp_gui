@@ -125,10 +125,13 @@ def create_app() -> Flask:
         return render_template(
             "index.html",
             config=config,
-            status=_service_status(app),
+            frpc_status=_service_status(app),
+            gui_status=_systemd_status(app.config["FRP_GUI_SERVICE"]),
             config_path=Path(app.config["FRP_CONFIG_PATH"]),
             service_control=_service_control_available(app),
             service_control_label=_service_control_label(app),
+            app_service_control=bool(shutil.which("systemctl")),
+            proxy_counts=_proxy_counts(config),
             proxies_view=proxies_view,
             sort_key=sort_key,
             direction=direction,
@@ -632,13 +635,20 @@ def _service_status(app: Flask) -> str:
     if not _service_control_available(app):
         return "Development"
 
+    return _systemd_status(app.config["FRPC_SERVICE"])
+
+
+def _systemd_status(service: str) -> str:
+    if not service:
+        return "Not configured"
+
     systemctl = shutil.which("systemctl")
     if not systemctl:
         return "Systemd unavailable"
 
     try:
         result = subprocess.run(
-            [systemctl, "is-active", app.config["FRPC_SERVICE"]],
+            [systemctl, "is-active", service],
             check=False,
             capture_output=True,
             text=True,
@@ -646,6 +656,13 @@ def _service_status(app: Flask) -> str:
     except OSError:
         return "Systemd unavailable"
     return result.stdout.strip() or "unknown"
+
+
+def _proxy_counts(config: FrpConfig) -> dict[str, int]:
+    total = len(config.proxies)
+    disabled = sum(1 for proxy in config.proxies if str(proxy.get("enabled", "true")).lower() == "false")
+    enabled = total - disabled
+    return {"enabled": enabled, "disabled": disabled, "total": total}
 
 
 def _config_format(path: Path) -> str:
