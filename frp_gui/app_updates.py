@@ -13,6 +13,8 @@ from io import BytesIO
 from pathlib import Path
 from typing import BinaryIO
 
+from .version import APP_VERSION
+
 
 PROJECT_DIRS = ("frp_gui", "scripts", "sample")
 PROJECT_FILES = ("run.py", "requirements.txt", "README.md", ".gitignore")
@@ -91,7 +93,7 @@ def update_from_git(app_root: Path) -> AppUpdateResult:
         branch = "main"
     remote_ref = f"origin/{branch}"
 
-    backup_path = create_app_backup(app_root, "Before Git update", f"Created automatically before moving the git checkout to {remote_ref}.")
+    backup_path = create_app_backup(app_root, "Before Git update", f"Created automatically before moving FRP Gui from {APP_VERSION} to {remote_ref}. Local app file changes will be overwritten.")
     details = [f"Backup created: {backup_path}"]
 
     fetch = _run([git, "fetch", "--tags", "--prune", "origin"], app_root)
@@ -112,7 +114,7 @@ def update_from_git(app_root: Path) -> AppUpdateResult:
     return AppUpdateResult(True, "Git update completed. Restart FRP Gui to run the new code.", details, backup_path)
 
 
-def update_from_zip(app_root: Path, zip_stream: BinaryIO, backup_reason: str = "Before ZIP update", backup_comment: str = "Created automatically before installing an uploaded ZIP.") -> AppUpdateResult:
+def update_from_zip(app_root: Path, zip_stream: BinaryIO, backup_reason: str = "Before ZIP update", backup_comment: str | None = None) -> AppUpdateResult:
     with tempfile.TemporaryDirectory(prefix="frp-gui-update-") as tmp_name:
         extract_dir = Path(tmp_name) / "extract"
         extract_dir.mkdir()
@@ -122,7 +124,7 @@ def update_from_zip(app_root: Path, zip_stream: BinaryIO, backup_reason: str = "
         except (OSError, ValueError, zipfile.BadZipFile) as exc:
             return AppUpdateResult(False, f"ZIP update failed validation: {exc}")
 
-        backup_path = create_app_backup(app_root, backup_reason, backup_comment)
+        backup_path = create_app_backup(app_root, backup_reason, backup_comment or f"Created automatically before installing an uploaded ZIP over FRP Gui {APP_VERSION}.")
         details = [
             f"Backup created: {backup_path}",
             f"Source root detected: {source_root.name}",
@@ -162,7 +164,7 @@ def update_from_release_zip(app_root: Path, zip_url: str, version: str, timeout:
         app_root,
         BytesIO(zip_data),
         backup_reason=f"Before installing release {version}",
-        backup_comment=f"Created automatically before updating to release {version}.",
+        backup_comment=f"Created automatically before updating FRP Gui from {APP_VERSION} to release {version}.",
     )
     if result.ok:
         result.message = f"Release {version} installed. Restart FRP Gui to run the new code."
@@ -178,7 +180,7 @@ def _update_git_checkout_to_release(app_root: Path, version: str) -> AppUpdateRe
     backup_path = create_app_backup(
         app_root,
         f"Before installing release {version}",
-        f"Created automatically before moving the git checkout to release {version}.",
+        f"Created automatically before moving FRP Gui from {APP_VERSION} to release {version}. Local app file changes will be overwritten.",
     )
     details = [f"Backup created: {backup_path}"]
 

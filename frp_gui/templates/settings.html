@@ -318,10 +318,10 @@
     </dl>
 
     <div class="update-actions compact-actions">
-      <form class="update-card" method="post" action="{{ url_for('apply_git_update') }}">
+      <form class="update-card" method="post" action="{{ url_for('apply_git_update') }}" data-confirm="Update from git branch? FRP Gui will create an app backup, fetch origin, then reset local app files to the configured remote branch. Local changes inside the app code will be overwritten. Runtime data and backups are kept.">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <strong>Update from git branch</strong>
-        <span>Runs <code>git pull --ff-only</code> for the configured branch, normally <code>main</code>. This is useful for testing, but it is not the official release update path.</span>
+        <span>Creates an app backup, fetches <code>origin</code>, then resets local app files to the configured remote branch, normally <code>origin/main</code>. This can overwrite local app code changes and is intended for testing.</span>
         <button class="ghost-button" type="submit" title="Update from git branch" {% if not app_update_status.git_ready %}disabled{% endif %}>Update from git</button>
       </form>
     </div>
