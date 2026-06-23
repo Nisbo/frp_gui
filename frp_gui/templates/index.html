@@ -18,13 +18,8 @@
           <span>FRP Client</span>
           <strong>{{ frpc_status }}</strong>
         </div>
-        <code>{{ config.common.get("server_addr", "-") }}:{{ config.common.get("server_port", "-") }}</code>
       </div>
       <div class="action-group">
-        <form method="post" action="{{ url_for('verify') }}">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-          <button class="ghost-button" type="submit" title="Verify config">Verify</button>
-        </form>
         {% if service_control %}
           {% for action in ["start", "stop", "restart", "enable", "disable"] %}
             <form method="post" action="{{ url_for('service_action', action=action) }}">
@@ -44,7 +39,6 @@
           <span>FRP Gui</span>
           <strong>{{ gui_status }}</strong>
         </div>
-        <code>{{ app_version }}</code>
       </div>
       <div class="action-group">
         {% if app_service_control %}
@@ -53,7 +47,6 @@
             <button class="primary-button" type="submit" title="Restart FRP Gui">Restart</button>
           </form>
         {% endif %}
-        <a class="ghost-button" href="{{ url_for('settings') }}" title="Open settings">Settings</a>
       </div>
     </div>
 
@@ -63,7 +56,6 @@
           <span>Proxy entries</span>
           <strong>{{ proxy_counts.enabled }} / {{ proxy_counts.total }} enabled</strong>
         </div>
-        <code>{{ proxy_counts.disabled }} disabled</code>
       </div>
       <div class="action-group">
         <a class="primary-button" href="{{ url_for('new_proxy') }}" title="Create new proxy">New proxy</a>
@@ -176,6 +168,15 @@
       </table>
     </div>
 
+    <div class="proxy-panel-actions">
+      <div class="action-group">
+        <span>Config</span>
+        <form method="post" action="{{ url_for('verify') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button class="ghost-button" type="submit" title="Verify config">Verify</button>
+        </form>
+      </div>
+    </div>
   </section>
 
   <section class="panel">

@@ -109,21 +109,11 @@ h2 {
 
 .operation-card {
   display: grid;
-  align-content: space-between;
+  align-content: start;
   gap: 16px;
   min-height: 124px;
   padding: 16px;
   border-radius: 8px;
-}
-
-.operation-head {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.operation-head > div {
-  min-width: 0;
 }
 
 .operation-head span {
@@ -138,13 +128,6 @@ h2 {
   margin-top: 6px;
   overflow-wrap: anywhere;
   font-size: 1.22rem;
-}
-
-.operation-head code {
-  align-self: flex-start;
-  max-width: 46%;
-  overflow-wrap: anywhere;
-  text-align: right;
 }
 
 .metric {
@@ -981,12 +964,4 @@ code {
     width: 100%;
   }
 
-  .operation-head {
-    flex-direction: column;
-  }
-
-  .operation-head code {
-    max-width: 100%;
-    text-align: left;
-  }
 }
