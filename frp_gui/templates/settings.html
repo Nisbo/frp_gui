@@ -4,6 +4,7 @@
   {% set settings_tabs = [
     ("general", "General"),
     ("network", "Network"),
+    ("security", "Security"),
     ("updates", "Updates"),
     ("migration", "Migration")
   ] %}
@@ -141,6 +142,54 @@
       <span>This preview updates while you type. Save & apply nginx writes this reverse proxy config and runs an nginx config test. Internal host or port changes need an FRP Gui service restart to affect the backend listener.</span>
     </div>
     <pre class="config-preview"><code id="nginx-preview">{{ nginx_preview }}</code></pre>
+  </section>
+  {% elif active_tab == "security" %}
+
+  <section class="panel settings-panel">
+    <div class="panel-head">
+      <div>
+        <h2>Security</h2>
+        <p>Change the FRP Gui login password stored in the environment file.</p>
+      </div>
+    </div>
+
+    <dl class="detail-grid two">
+      <div>
+        <dt>Password login</dt>
+        <dd>{% if password_enabled %}Enabled{% else %}Disabled{% endif %}</dd>
+      </div>
+      <div>
+        <dt>Environment file</dt>
+        <dd>{{ env_file }}</dd>
+      </div>
+    </dl>
+
+    <form class="form-grid single" method="post" action="{{ url_for('change_password') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+      {% if password_enabled %}
+        <label>
+          Current password
+          <input name="current_password" type="password" autocomplete="current-password" required>
+          <span class="field-help">Required before changing the active login password.</span>
+        </label>
+      {% endif %}
+
+      <label>
+        New password
+        <input name="new_password" type="password" autocomplete="new-password" minlength="8" required>
+        <span class="field-help">Use at least 8 characters. Whitespace is not allowed because the password is stored in a systemd environment file.</span>
+      </label>
+
+      <label>
+        Confirm new password
+        <input name="confirm_password" type="password" autocomplete="new-password" minlength="8" required>
+      </label>
+
+      <div class="form-actions split-actions">
+        <button class="primary-button" type="submit" title="Change login password">Change password</button>
+      </div>
+    </form>
   </section>
   {% elif active_tab == "updates" %}
 

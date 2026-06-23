@@ -48,6 +48,7 @@ def create_app() -> Flask:
         FRPC_SERVICE=os.environ.get("FRPC_SERVICE", "frpc"),
         ALLOW_SYSTEMCTL=os.environ.get("FRP_GUI_ALLOW_SYSTEMCTL", "0") == "1",
         ADMIN_PASSWORD=os.environ.get("FRP_GUI_PASSWORD", ""),
+        ENV_FILE=Path(os.environ.get("FRP_GUI_ENV_FILE", "/etc/frp-gui.env")),
         INSTALL_PATH=Path(os.environ.get("FRP_GUI_INSTALL_PATH", "/opt/frp-gui")),
         FRP_GUI_SERVICE=os.environ.get("FRP_GUI_SERVICE", "frp-gui"),
         FRP_GUI_HOST=os.environ.get("FRP_GUI_HOST", "127.0.0.1"),
@@ -167,7 +168,7 @@ def create_app() -> Flask:
     def settings():
         config_path = Path(app.config["FRP_CONFIG_PATH"])
         active_tab = request.args.get("tab", "general")
-        if active_tab not in {"general", "network", "updates", "migration"}:
+        if active_tab not in {"general", "network", "security", "updates", "migration"}:
             active_tab = "general"
         return render_template(
             "settings.html",
@@ -178,6 +179,8 @@ def create_app() -> Flask:
             frpc_service=app.config["FRPC_SERVICE"],
             app_root=Path(app.root_path).parent,
             configured_install_path=app.config["INSTALL_PATH"],
+            env_file=app.config["ENV_FILE"],
+            password_enabled=bool(app.config["ADMIN_PASSWORD"]),
             systemctl_enabled=app.config["ALLOW_SYSTEMCTL"],
             network=_network_config(app),
             nginx_preview=render_nginx_config(_network_config(app)),
@@ -213,6 +216,36 @@ def create_app() -> Flask:
         app.config["ALLOW_SYSTEMCTL"] = request.form.get("allow_systemctl") == "on"
         flash("Runtime settings updated for this app process.", "success")
         return redirect(url_for("settings", tab="general"))
+
+    @app.post("/settings/security/password")
+    def change_password():
+        current_password = request.form.get("current_password", "")
+        new_password = request.form.get("new_password", "")
+        confirm_password = request.form.get("confirm_password", "")
+
+        if app.config["ADMIN_PASSWORD"] and not secrets.compare_digest(current_password, app.config["ADMIN_PASSWORD"]):
+            flash("Current password is incorrect.", "error")
+            return redirect(url_for("settings", tab="security"))
+        if new_password != confirm_password:
+            flash("New passwords do not match.", "error")
+            return redirect(url_for("settings", tab="security"))
+        if len(new_password) < 8:
+            flash("New password must be at least 8 characters.", "error")
+            return redirect(url_for("settings", tab="security"))
+        if any(char.isspace() for char in new_password):
+            flash("New password must not contain whitespace.", "error")
+            return redirect(url_for("settings", tab="security"))
+
+        try:
+            _update_env_value(Path(app.config["ENV_FILE"]), "FRP_GUI_PASSWORD", new_password)
+        except OSError as exc:
+            flash(f"Password could not be saved: {exc}", "error")
+            return redirect(url_for("settings", tab="security"))
+
+        app.config["ADMIN_PASSWORD"] = new_password
+        session.clear()
+        flash("Password changed. Please sign in again.", "success")
+        return redirect(url_for("login"))
 
     @app.post("/settings/network")
     def save_network_settings():
@@ -879,6 +912,26 @@ def _store_app_update_result(result) -> None:
         "details": result.details,
         "backup_path": str(result.backup_path) if result.backup_path else None,
     }
+
+
+def _update_env_value(path: Path, key: str, value: str) -> None:
+    lines = path.read_text(encoding="utf-8").splitlines() if path.exists() else []
+    replacement = f"{key}={value}"
+    updated = False
+    output: list[str] = []
+
+    for line in lines:
+        if line.startswith(f"{key}="):
+            output.append(replacement)
+            updated = True
+        else:
+            output.append(line)
+
+    if not updated:
+        output.append(replacement)
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\n".join(output) + "\n", encoding="utf-8")
 
 
 def _proxy_view(proxy: dict[str, str]) -> dict[str, str]:

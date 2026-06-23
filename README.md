@@ -6,7 +6,7 @@ usually `frpc.ini`.
 Current app version:
 
 ```text
-0.1.14
+0.1.15
 ```
 
 ## Quick Install On Debian 12
@@ -57,9 +57,14 @@ http://YOUR-SERVER-IP:8844
 
 Log in with the password printed by the installer.
 
-To change the login password later, edit `FRP_GUI_PASSWORD` in
-`/etc/frp-gui.env` and restart `frp-gui`. A password-change screen inside the
-GUI is planned for a later version.
+To change the login password later, open:
+
+```text
+Settings -> Security
+```
+
+The GUI updates `FRP_GUI_PASSWORD` in `/etc/frp-gui.env` and asks you to sign
+in again.
 
 ## What Is Gunicorn?
 
@@ -101,7 +106,7 @@ Recommended release workflow:
 ```
 
 The release check compares your installed version with the latest GitHub
-release tag, for example `0.1.14`. When updates are available, the GUI shows
+release tag, for example `0.1.15`. When updates are available, the GUI shows
 release notes for every official release newer than your installed version.
 
 If the server cannot download the release directly, use the manual fallback:
