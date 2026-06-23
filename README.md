@@ -6,7 +6,7 @@ usually `frpc.ini`.
 Current app version:
 
 ```text
-0.1.1
+0.1.2
 ```
 
 ## Quick Install On Debian 12
@@ -90,17 +90,33 @@ Normal users do not need to edit it.
 
 ## Updating FRP Gui
 
-If you installed with `git clone`, update from the GUI:
+FRP Gui uses GitHub releases as the official update channel.
+
+Recommended release workflow:
+
+```text
+1. Check for updates in Settings -> Updates
+2. Open the latest GitHub release
+3. Download the release ZIP
+4. Upload the ZIP in Settings -> Updates
+5. Restart FRP Gui from the same page
+```
+
+The release check compares your installed version with the latest GitHub
+release tag, for example `v0.1.2`.
+
+Advanced git updates are still available when FRP Gui was installed with
+`git clone`:
 
 ```text
 Settings -> Updates -> Update from git
 ```
 
-This runs `git pull` for the checked-out branch, normally `main`. It does not
-download a GitHub release asset. The release check only compares version
-numbers.
+This runs `git pull --ff-only` for the checked-out branch, normally `main`.
+Use it only for testing or development systems, because `main` can contain
+changes that are newer than the latest official release.
 
-Then restart FRP Gui:
+After any update, restart FRP Gui:
 
 ```bash
 systemctl restart frp-gui
@@ -129,11 +145,11 @@ cd /opt/frp-gui
 ./scripts/install_debian.sh
 ```
 
-With this method, the `Update from git` button will not be available. ZIP
-updates can still be uploaded in:
+With this method, the advanced `Update from git` button will not be available.
+Release ZIP updates can still be uploaded in:
 
 ```text
-Settings -> Updates -> Upload ZIP update
+Settings -> Updates -> Upload release ZIP
 ```
 
 ## Manual Configuration
@@ -226,7 +242,8 @@ systemctl reload nginx
 - preview, restore and delete backups
 - start, stop, restart, enable and disable the configured systemd service
 - check GitHub releases
-- update by git or ZIP upload
+- update by release ZIP upload
+- advanced git branch update for testing systems
 - password login
 - dark mode
 - no database

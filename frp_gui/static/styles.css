@@ -360,6 +360,10 @@ button:disabled {
   background: var(--accent-strong);
 }
 
+.button-link {
+  text-decoration: none;
+}
+
 .ghost-button,
 .icon-button {
   background: var(--panel);
@@ -737,7 +741,24 @@ code {
 }
 
 .update-detail-grid {
-  margin-top: 0;
+  margin-top: 12px;
+}
+
+.update-section-title {
+  display: grid;
+  gap: 5px;
+  margin-top: 18px;
+}
+
+.update-section-title strong {
+  color: var(--ink);
+  font-size: 1rem;
+}
+
+.update-section-title span {
+  color: var(--muted);
+  font-size: .9rem;
+  line-height: 1.45;
 }
 
 .update-actions {
@@ -745,6 +766,10 @@ code {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
   margin-top: 18px;
+}
+
+.compact-actions {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .update-card,

@@ -148,7 +148,7 @@
     <div class="panel-head">
       <div>
         <h2>Updates</h2>
-        <p>Check releases, update from git, or upload a ZIP package.</p>
+        <p>Use official GitHub releases for normal systems. Git updates are available as an advanced development option.</p>
       </div>
     </div>
 
@@ -158,7 +158,7 @@
         <strong>{{ app_version }}</strong>
       </div>
       <div>
-        <span>Available</span>
+        <span>Latest official release</span>
         <strong>
           {% if update_status %}
             {% if update_status.no_releases %}No releases yet{% else %}{{ update_status.latest_version or "Unknown" }}{% endif %}
@@ -187,8 +187,70 @@
       </div>
       <form method="post" action="{{ url_for('check_update') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <button class="primary-button" type="submit" title="Check for updates">Check updates</button>
+        <button class="primary-button" type="submit" title="Check official GitHub releases">Check releases</button>
       </form>
+    </div>
+
+    {% if update_status and update_status.error %}
+      <div class="coming-soon">
+        <strong>Update check error</strong>
+        <span>{{ update_status.error }}</span>
+      </div>
+    {% elif update_status and update_status.no_releases %}
+      <div class="coming-soon">
+        <strong>No GitHub release yet</strong>
+        <span>Create a release on GitHub, for example <code>v0.1.0</code>, when you want the release check to compare versions.</span>
+      </div>
+    {% elif update_status and update_status.update_available and update_status.release_url %}
+      <div class="coming-soon">
+        <strong>New release available</strong>
+        <span><a class="table-link" href="{{ update_status.release_url }}" target="_blank" rel="noopener noreferrer">Open release page</a></span>
+      </div>
+    {% endif %}
+
+    {% if app_update_result %}
+      <div class="update-result {{ 'ok' if app_update_result.ok else 'error' }}">
+        <strong>{{ app_update_result.message }}</strong>
+        {% if app_update_result.backup_path %}
+          <span>Backup: <code>{{ app_update_result.backup_path }}</code></span>
+        {% endif %}
+        {% if app_update_result.details %}
+          <pre class="config-preview update-output"><code>{{ app_update_result.details | join("\n\n") }}</code></pre>
+        {% endif %}
+      </div>
+    {% endif %}
+
+    <div class="update-section-title">
+      <strong>Official release update</strong>
+      <span>Recommended for live systems. FRP Gui compares your installed version with the latest GitHub release tag, for example <code>v0.1.2</code>.</span>
+    </div>
+
+    <div class="update-actions">
+      <div class="update-card">
+        <strong>GitHub release</strong>
+        <span>Open the latest release page, download the release ZIP, then upload it here. This keeps updates tied to published versions instead of unreleased branch changes.</span>
+        <a class="primary-button button-link" href="{{ update_status.release_url if update_status and update_status.release_url else repo_url ~ '/releases' }}" target="_blank" rel="noopener noreferrer">Open releases</a>
+      </div>
+
+      <form class="update-card" method="post" action="{{ url_for('apply_zip_update') }}" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <strong>Upload release ZIP</strong>
+        <span>Installs a ZIP with the same project structure as the GitHub release archive. A backup is created before files are replaced.</span>
+        <input name="update_zip" type="file" accept=".zip,application/zip" required>
+        <button class="primary-button" type="submit" title="Upload release ZIP">Upload ZIP</button>
+      </form>
+
+      <form class="update-card" method="post" action="{{ url_for('restart_app_service') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <strong>Restart FRP Gui</strong>
+        <span>Restarts the <code>frp-gui</code> systemd service so updated files are loaded by Gunicorn.</span>
+        <button class="primary-button" type="submit" title="Restart FRP Gui">Restart FRP Gui</button>
+      </form>
+    </div>
+
+    <div class="update-section-title">
+      <strong>Advanced developer update</strong>
+      <span>Use this only when you intentionally want the current git branch. It may include code that has not been published as an official release yet.</span>
     </div>
 
     <dl class="detail-grid two update-detail-grid">
@@ -222,56 +284,12 @@
       </div>
     </dl>
 
-    {% if update_status and update_status.error %}
-      <div class="coming-soon">
-        <strong>Update check error</strong>
-        <span>{{ update_status.error }}</span>
-      </div>
-    {% elif update_status and update_status.no_releases %}
-      <div class="coming-soon">
-        <strong>No GitHub release yet</strong>
-        <span>Create a release on GitHub, for example <code>v0.1.0</code>, when you want the release check to compare versions.</span>
-      </div>
-    {% elif update_status and update_status.update_available and update_status.release_url %}
-      <div class="coming-soon">
-        <strong>New release available</strong>
-        <span><a class="table-link" href="{{ update_status.release_url }}" target="_blank" rel="noopener noreferrer">Open release page</a></span>
-      </div>
-    {% endif %}
-
-    {% if app_update_result %}
-      <div class="update-result {{ 'ok' if app_update_result.ok else 'error' }}">
-        <strong>{{ app_update_result.message }}</strong>
-        {% if app_update_result.backup_path %}
-          <span>Backup: <code>{{ app_update_result.backup_path }}</code></span>
-        {% endif %}
-        {% if app_update_result.details %}
-          <pre class="config-preview update-output"><code>{{ app_update_result.details | join("\n\n") }}</code></pre>
-        {% endif %}
-      </div>
-    {% endif %}
-
-    <div class="update-actions">
+    <div class="update-actions compact-actions">
       <form class="update-card" method="post" action="{{ url_for('apply_git_update') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <strong>Git update</strong>
-        <span>Pulls from the configured git branch, normally <code>main</code>. It does not install a GitHub release asset.</span>
-        <button class="primary-button" type="submit" title="Update from git" {% if not app_update_status.git_ready %}disabled{% endif %}>Update from git</button>
-      </form>
-
-      <form class="update-card" method="post" action="{{ url_for('restart_app_service') }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <strong>Restart FRP Gui</strong>
-        <span>Restarts the <code>frp-gui</code> systemd service so updated files are loaded by Gunicorn.</span>
-        <button class="primary-button" type="submit" title="Restart FRP Gui">Restart FRP Gui</button>
-      </form>
-
-      <form class="update-card" method="post" action="{{ url_for('apply_zip_update') }}" enctype="multipart/form-data">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <strong>ZIP update</strong>
-        <span>Uploads a ZIP with the same project structure as git: <code>frp_gui/</code>, <code>run.py</code>, and optional docs, scripts or samples. A backup is created first.</span>
-        <input name="update_zip" type="file" accept=".zip,application/zip" required>
-        <button class="primary-button" type="submit" title="Upload ZIP update">Upload ZIP update</button>
+        <strong>Update from git branch</strong>
+        <span>Runs <code>git pull --ff-only</code> for the configured branch, normally <code>main</code>. This is useful for testing, but it is not the official release update path.</span>
+        <button class="ghost-button" type="submit" title="Update from git branch" {% if not app_update_status.git_ready %}disabled{% endif %}>Update from git</button>
       </form>
     </div>
 
