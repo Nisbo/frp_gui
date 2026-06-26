@@ -11,46 +11,59 @@
 
     <form class="form-grid proxy-form" method="post" action="{% if mode == 'edit' %}{{ url_for('update_proxy', name=proxy.name) }}{% else %}{{ url_for('create_proxy') }}{% endif %}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-      <label>
-        Name
-        <input name="name" value="{{ proxy.get('name', '') }}" required maxlength="64">
-        <span class="field-help">Unique name for this proxy. Use letters, numbers, dots, underscores or dashes.</span>
-      </label>
-      <label>
-        Type
-        <select name="type" required>
-          {% for item in ["https", "http", "tcp", "udp", "stcp", "sudp", "xtcp", "tcpmux"] %}
-            <option value="{{ item }}" {% if proxy.get('type', '') == item %}selected{% endif %}>{{ item }}</option>
-          {% endfor %}
-        </select>
-        <span class="field-help">HTTP/HTTPS publish web apps by domain. TCP/UDP publish a local port through a remote port.</span>
-      </label>
-      <label>
-        Local IP / host
-        <input name="local_ip" value="{{ proxy.get('local_ip', '127.0.0.1') }}" required>
-        <span class="field-help">Local service address that frpc can reach from this machine, for example <code>127.0.0.1</code> or a LAN IP.</span>
-      </label>
-      <label>
-        Local port
-        <input name="local_port" type="number" min="1" max="65535" value="{{ proxy.get('local_port', '') }}" required>
-        <span class="field-help">Local service port. For example <code>443</code> for HTTPS or <code>22</code> for SSH.</span>
-      </label>
-      <label>
-        Domains
-        <input name="custom_domains" value="{{ proxy.get('custom_domains', '') }}" placeholder="app.example.org">
-        <span class="field-help">One or more domains for HTTP/HTTPS proxies. Separate multiple domains with commas.</span>
-      </label>
-      <label>
-        Remote-Port
-        <input name="remote_port" type="number" min="1" max="65535" value="{{ proxy.get('remote_port', '') }}">
-        <span class="field-help">Required for TCP/UDP proxies. This is the port opened on the FRP server side.</span>
-      </label>
 
-      <label class="switch-row proxy-enabled-row">
-        <input type="hidden" name="enabled_form" value="1">
-        <input name="enabled" type="checkbox" {% if proxy.get('enabled', 'true') != 'false' %}checked{% endif %}>
-        <span>Enabled</span>
-      </label>
+      <details class="form-section full-row standard-section" open>
+        <summary>Standard settings</summary>
+        <div class="form-grid">
+          <label class="switch-row proxy-enabled-row">
+            <input type="hidden" name="enabled_form" value="1">
+            <input name="enabled" type="checkbox" {% if proxy.get('enabled', 'true') != 'false' %}checked{% endif %}>
+            <span>
+              Enabled
+              <small>Controls whether this proxy is written as an active FRP entry. Disabled proxies stay in the config as comments and need a FRP Client restart after changing.</small>
+            </span>
+          </label>
+          <label>
+            Name
+            <input name="name" value="{{ proxy.get('name', '') }}" required maxlength="64">
+            <span class="field-help">Unique name for this proxy. Use letters, numbers, dots, underscores or dashes.</span>
+          </label>
+          <label>
+            Type
+            <select name="type" required>
+              {% for item in ["https", "http", "tcp", "udp", "stcp", "sudp", "xtcp", "tcpmux"] %}
+                <option value="{{ item }}" {% if proxy.get('type', '') == item %}selected{% endif %}>{{ item }}</option>
+              {% endfor %}
+            </select>
+            <span class="field-help">HTTP/HTTPS publish web apps by domain. TCP/UDP publish a local port through a remote port.</span>
+          </label>
+          <label>
+            Local IP / host
+            <input name="local_ip" value="{{ proxy.get('local_ip', '127.0.0.1') }}" required>
+            <span class="field-help">Local service address that frpc can reach from this machine, for example <code>127.0.0.1</code> or a LAN IP.</span>
+          </label>
+          <label>
+            Local port
+            <input name="local_port" type="number" min="1" max="65535" value="{{ proxy.get('local_port', '') }}" required>
+            <span class="field-help">Local service port. For example <code>443</code> for HTTPS or <code>22</code> for SSH.</span>
+          </label>
+          <label>
+            Domains
+            <input name="custom_domains" value="{{ proxy.get('custom_domains', '') }}" placeholder="app.example.org">
+            <span class="field-help">One or more domains for HTTP/HTTPS proxies. Separate multiple domains with commas.</span>
+          </label>
+          <label>
+            Remote-Port
+            <input name="remote_port" type="number" min="1" max="65535" value="{{ proxy.get('remote_port', '') }}">
+            <span class="field-help">Required for TCP/UDP proxies. This is the port opened on the FRP server side.</span>
+          </label>
+        </div>
+      </details>
+
+      <div class="advanced-intro full-row">
+        <strong>Advanced options</strong>
+        <span>Most users do not need these settings. Open them only when your FRP server or backend service explicitly requires the option.</span>
+      </div>
 
       <details class="form-section full-row">
         <summary>HTTP and HTTPS options</summary>
