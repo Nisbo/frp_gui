@@ -6,7 +6,7 @@ TOML is the editable format; existing INI configs can be migrated in the GUI.
 Current app version:
 
 ```text
-0.1.21
+0.1.22
 ```
 
 ## Quick Install On Debian 12
@@ -106,7 +106,7 @@ Recommended release workflow:
 ```
 
 The release check compares your installed version with the latest GitHub
-release tag, for example `0.1.21`. When updates are available, the GUI shows
+release tag, for example `0.1.22`. When updates are available, the GUI shows
 release notes for every official release newer than your installed version.
 
 If the server cannot download the release directly, use the manual fallback:
@@ -312,6 +312,26 @@ restart the FRP Client service from the GUI.
 Runtime settings are stored in `/etc/frp-gui.env`. FRP Gui reloads these values
 on every request, so systems running multiple Gunicorn workers show the same
 config path immediately after migration.
+
+## Supported TOML Options
+
+FRP Gui keeps the default forms small and shows advanced options in collapsible
+sections. Empty optional fields are not written to the config.
+
+Server options include:
+
+- server address, server port, token and TLS
+- transport protocol and TLS server name
+- client user and login-fail behavior
+- log level, log file and log retention
+
+Proxy options include:
+
+- local address, local port, domains and remote port
+- HTTP/HTTPS subdomain, locations and Host header rewrite
+- TCP proxy protocol headers
+- health checks
+- load-balancer group and group key
 
 ## Security Notes
 

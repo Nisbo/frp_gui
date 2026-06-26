@@ -14,6 +14,7 @@
       <label>
         Name
         <input name="name" value="{{ proxy.get('name', '') }}" required maxlength="64">
+        <span class="field-help">Unique name for this proxy. Use letters, numbers, dots, underscores or dashes.</span>
       </label>
       <label>
         Type
@@ -22,22 +23,27 @@
             <option value="{{ item }}" {% if proxy.get('type', '') == item %}selected{% endif %}>{{ item }}</option>
           {% endfor %}
         </select>
+        <span class="field-help">HTTP/HTTPS publish web apps by domain. TCP/UDP publish a local port through a remote port.</span>
       </label>
       <label>
         Local IP / host
         <input name="local_ip" value="{{ proxy.get('local_ip', '127.0.0.1') }}" required>
+        <span class="field-help">Local service address that frpc can reach from this machine, for example <code>127.0.0.1</code> or a LAN IP.</span>
       </label>
       <label>
         Local port
         <input name="local_port" type="number" min="1" max="65535" value="{{ proxy.get('local_port', '') }}" required>
+        <span class="field-help">Local service port. For example <code>443</code> for HTTPS or <code>22</code> for SSH.</span>
       </label>
       <label>
         Domains
         <input name="custom_domains" value="{{ proxy.get('custom_domains', '') }}" placeholder="app.example.org">
+        <span class="field-help">One or more domains for HTTP/HTTPS proxies. Separate multiple domains with commas.</span>
       </label>
       <label>
         Remote-Port
         <input name="remote_port" type="number" min="1" max="65535" value="{{ proxy.get('remote_port', '') }}">
+        <span class="field-help">Required for TCP/UDP proxies. This is the port opened on the FRP server side.</span>
       </label>
 
       <label class="switch-row proxy-enabled-row">
@@ -45,6 +51,95 @@
         <input name="enabled" type="checkbox" {% if proxy.get('enabled', 'true') != 'false' %}checked{% endif %}>
         <span>Enabled</span>
       </label>
+
+      <details class="form-section full-row">
+        <summary>HTTP and HTTPS options</summary>
+        <div class="form-grid">
+          <label>
+            Subdomain
+            <input name="subdomain" value="{{ proxy.get('subdomain', '') }}" placeholder="app">
+            <span class="field-help">Optional subdomain when your FRP server has a configured subdomain host. Usually leave empty when using custom domains.</span>
+          </label>
+          <label>
+            Locations
+            <input name="locations" value="{{ proxy.get('locations', '') }}" placeholder="/api, /admin">
+            <span class="field-help">Optional URL path prefixes for HTTP routing. Separate multiple paths with commas.</span>
+          </label>
+          <label>
+            Host header rewrite
+            <input name="host_header_rewrite" value="{{ proxy.get('host_header_rewrite', '') }}" placeholder="internal.example.local">
+            <span class="field-help">Changes the Host header sent to the local service. Useful when the backend expects a specific hostname.</span>
+          </label>
+        </div>
+      </details>
+
+      <details class="form-section full-row">
+        <summary>TCP options</summary>
+        <div class="form-grid">
+          <label>
+            Proxy protocol version
+            <select name="proxy_protocol_version">
+              <option value="">Disabled</option>
+              {% for item in ["v1", "v2"] %}
+                <option value="{{ item }}" {% if proxy.get('proxy_protocol_version', '') == item %}selected{% endif %}>{{ item }}</option>
+              {% endfor %}
+            </select>
+            <span class="field-help">Adds PROXY protocol headers so the backend can see the original client IP. Only enable if the local service supports it.</span>
+          </label>
+        </div>
+      </details>
+
+      <details class="form-section full-row">
+        <summary>Health check</summary>
+        <div class="form-grid">
+          <label>
+            Check type
+            <select name="health_check_type">
+              <option value="">Disabled</option>
+              {% for item in ["tcp", "http"] %}
+                <option value="{{ item }}" {% if proxy.get('health_check_type', '') == item %}selected{% endif %}>{{ item }}</option>
+              {% endfor %}
+            </select>
+            <span class="field-help">Optional check used by frpc to decide whether the local service is healthy.</span>
+          </label>
+          <label>
+            HTTP check path
+            <input name="health_check_path" value="{{ proxy.get('health_check_path', '') }}" placeholder="/health">
+            <span class="field-help">Path used for HTTP health checks. Leave empty for TCP checks.</span>
+          </label>
+          <label>
+            Interval seconds
+            <input name="health_check_interval" type="number" min="1" value="{{ proxy.get('health_check_interval', '') }}">
+            <span class="field-help">How often frpc checks the local service. Leave empty for FRP defaults.</span>
+          </label>
+          <label>
+            Timeout seconds
+            <input name="health_check_timeout" type="number" min="1" value="{{ proxy.get('health_check_timeout', '') }}">
+            <span class="field-help">How long a single health check may take before it counts as failed.</span>
+          </label>
+          <label>
+            Max failed checks
+            <input name="health_check_max_failed" type="number" min="1" value="{{ proxy.get('health_check_max_failed', '') }}">
+            <span class="field-help">Number of failed checks before frpc treats the proxy as unhealthy.</span>
+          </label>
+        </div>
+      </details>
+
+      <details class="form-section full-row">
+        <summary>Load balancing</summary>
+        <div class="form-grid">
+          <label>
+            Group
+            <input name="load_balancer_group" value="{{ proxy.get('load_balancer_group', '') }}" placeholder="web-cluster">
+            <span class="field-help">Optional group name for multiple frpc clients serving the same proxy. All members need matching settings.</span>
+          </label>
+          <label>
+            Group key
+            <input name="load_balancer_group_key" value="{{ proxy.get('load_balancer_group_key', '') }}" autocomplete="new-password">
+            <span class="field-help">Shared key for the load-balancer group. Leave empty unless your FRP server requires group authentication.</span>
+          </label>
+        </div>
+      </details>
 
       <div class="form-actions proxy-actions">
         {% if mode == "edit" %}

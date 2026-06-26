@@ -342,7 +342,8 @@ label {
 }
 
 .field-help,
-.service-toggle small {
+.service-toggle small,
+.switch-row small {
   color: var(--muted);
   font-size: .82rem;
   font-weight: 500;
@@ -398,10 +399,37 @@ select:focus {
   gap: 5px;
 }
 
+.switch-row span {
+  display: grid;
+  gap: 5px;
+}
+
 .switch-row input {
   width: 20px;
   min-height: 20px;
   accent-color: var(--accent);
+}
+
+.form-section {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  padding: 0;
+}
+
+.form-section summary {
+  cursor: pointer;
+  color: var(--ink);
+  font-weight: 900;
+  padding: 14px;
+}
+
+.form-section[open] summary {
+  border-bottom: 1px solid var(--line);
+}
+
+.form-section > .form-grid {
+  padding: 14px;
 }
 
 button,

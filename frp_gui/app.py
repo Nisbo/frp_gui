@@ -614,6 +614,13 @@ def create_app() -> Flask:
             "server_port": request.form.get("server_port", "").strip(),
             "token": request.form.get("token", "").strip(),
             "tls_enable": "true" if request.form.get("tls_enable") == "on" else "false",
+            "tls_server_name": request.form.get("tls_server_name", "").strip(),
+            "transport_protocol": request.form.get("transport_protocol", "").strip(),
+            "log_level": request.form.get("log_level", "").strip(),
+            "log_file": request.form.get("log_file", "").strip(),
+            "log_max_days": request.form.get("log_max_days", "").strip(),
+            "user": request.form.get("user", "").strip(),
+            "login_fail_exit": "true" if request.form.get("login_fail_exit") == "on" else "",
         }
         errors = validate_common(common)
         if errors:
@@ -844,6 +851,17 @@ def _proxy_from_form(existing: dict[str, str] | None = None) -> dict[str, str]:
         "local_port": request.form.get("local_port", "").strip(),
         "custom_domains": request.form.get("custom_domains", "").strip(),
         "remote_port": request.form.get("remote_port", "").strip(),
+        "subdomain": request.form.get("subdomain", "").strip(),
+        "locations": request.form.get("locations", "").strip(),
+        "host_header_rewrite": request.form.get("host_header_rewrite", "").strip(),
+        "proxy_protocol_version": request.form.get("proxy_protocol_version", "").strip(),
+        "health_check_type": request.form.get("health_check_type", "").strip(),
+        "health_check_path": request.form.get("health_check_path", "").strip(),
+        "health_check_interval": request.form.get("health_check_interval", "").strip(),
+        "health_check_timeout": request.form.get("health_check_timeout", "").strip(),
+        "health_check_max_failed": request.form.get("health_check_max_failed", "").strip(),
+        "load_balancer_group": request.form.get("load_balancer_group", "").strip(),
+        "load_balancer_group_key": request.form.get("load_balancer_group_key", "").strip(),
         "enabled": enabled,
     }
 
@@ -888,8 +906,10 @@ def _verify_config(app: Flask) -> tuple[bool, str]:
 
 
 def _service_status(app: Flask) -> str:
+    if not app.config["ALLOW_SYSTEMCTL"]:
+        return "Systemd control disabled"
     if not _service_control_available(app):
-        return "Development"
+        return "Systemd unavailable"
 
     return _systemd_status(app.config["FRPC_SERVICE"])
 

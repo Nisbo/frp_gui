@@ -121,6 +121,17 @@ def read_toml(path: Path) -> FrpConfig:
             "local_port": str(item.get("localPort", item.get("local_port", ""))).strip(),
             "custom_domains": _domains_to_string(item.get("customDomains", item.get("custom_domains", ""))),
             "remote_port": str(item.get("remotePort", item.get("remote_port", ""))).strip(),
+            "subdomain": str(item.get("subdomain", "")).strip(),
+            "locations": _domains_to_string(item.get("locations", "")),
+            "host_header_rewrite": str(item.get("hostHeaderRewrite", "")).strip(),
+            "proxy_protocol_version": str(item.get("proxyProtocolVersion", "")).strip(),
+            "health_check_type": str(_nested_get(item, ["healthCheck", "type"], "")).strip(),
+            "health_check_path": str(_nested_get(item, ["healthCheck", "path"], "")).strip(),
+            "health_check_interval": str(_nested_get(item, ["healthCheck", "intervalSeconds"], "")).strip(),
+            "health_check_timeout": str(_nested_get(item, ["healthCheck", "timeoutSeconds"], "")).strip(),
+            "health_check_max_failed": str(_nested_get(item, ["healthCheck", "maxFailed"], "")).strip(),
+            "load_balancer_group": str(_nested_get(item, ["loadBalancer", "group"], "")).strip(),
+            "load_balancer_group_key": str(_nested_get(item, ["loadBalancer", "groupKey"], "")).strip(),
             "enabled": "true",
         }
         if proxy["name"]:
@@ -141,10 +152,31 @@ def write_toml(path: Path, config: FrpConfig) -> None:
         lines.append(f"serverAddr = {_toml_string(common['server_addr'])}")
     if common.get("server_port", "").strip():
         lines.append(f"serverPort = {int(common['server_port'])}")
+    if common.get("user", "").strip():
+        lines.append(f"user = {_toml_string(common['user'])}")
+    if common.get("login_fail_exit", "").strip():
+        lines.append(f"loginFailExit = {_toml_bool(common['login_fail_exit'])}")
     if common.get("token", "").strip():
         lines.extend(["", "[auth]", f"token = {_toml_string(common['token'])}"])
+    transport_lines = []
+    if common.get("transport_protocol", "").strip():
+        transport_lines.append(f"protocol = {_toml_string(common['transport_protocol'])}")
+    if transport_lines:
+        lines.extend(["", "[transport]", *transport_lines])
     if common.get("tls_enable", "").strip():
-        lines.extend(["", "[transport.tls]", f"enable = {_toml_bool(common['tls_enable'])}"])
+        tls_lines = [f"enable = {_toml_bool(common['tls_enable'])}"]
+        if common.get("tls_server_name", "").strip():
+            tls_lines.append(f"serverName = {_toml_string(common['tls_server_name'])}")
+        lines.extend(["", "[transport.tls]", *tls_lines])
+    log_lines = []
+    if common.get("log_level", "").strip():
+        log_lines.append(f"level = {_toml_string(common['log_level'])}")
+    if common.get("log_file", "").strip():
+        log_lines.append(f"to = {_toml_string(common['log_file'])}")
+    if common.get("log_max_days", "").strip():
+        log_lines.append(f"maxDays = {int(common['log_max_days'])}")
+    if log_lines:
+        lines.extend(["", "[log]", *log_lines])
 
     for proxy in enabled:
         lines.extend(["", *list(_toml_proxy_lines(proxy))])
@@ -182,6 +214,18 @@ def validate_common(common: dict[str, str]) -> list[str]:
     if tls and tls not in {"true", "false"}:
         errors.append("TLS must be true or false.")
 
+    protocol = common.get("transport_protocol", "").strip()
+    if protocol and protocol not in {"tcp", "kcp", "quic", "websocket", "wss"}:
+        errors.append("Transport protocol is not allowed.")
+
+    log_level = common.get("log_level", "").strip()
+    if log_level and log_level not in {"trace", "debug", "info", "warn", "error"}:
+        errors.append("Log level is not allowed.")
+
+    log_max_days = common.get("log_max_days", "").strip()
+    if log_max_days and not _valid_non_negative_int(log_max_days):
+        errors.append("Log max days must be 0 or greater.")
+
     return errors
 
 
@@ -193,6 +237,8 @@ def validate_proxy(proxy: dict[str, str], existing_names: set[str] | None = None
     local_port = proxy.get("local_port", "").strip()
     domains = proxy.get("custom_domains", "").strip()
     remote_port = proxy.get("remote_port", "").strip()
+    proxy_protocol = proxy.get("proxy_protocol_version", "").strip()
+    health_type = proxy.get("health_check_type", "").strip()
 
     if not NAME_RE.match(name):
         errors.append("Name may only contain letters, numbers, dot, underscore and dash.")
@@ -208,6 +254,18 @@ def validate_proxy(proxy: dict[str, str], existing_names: set[str] | None = None
         errors.append("HTTP/HTTPS proxies need at least one domain.")
     if proxy_type in {"tcp", "udp"} and not _valid_port(remote_port):
         errors.append("TCP/UDP proxies need a remote port.")
+    if proxy_protocol and proxy_protocol not in {"v1", "v2"}:
+        errors.append("Proxy protocol version must be v1 or v2.")
+    if health_type and health_type not in {"tcp", "http"}:
+        errors.append("Health check type must be tcp or http.")
+    for key, label in {
+        "health_check_interval": "Health check interval",
+        "health_check_timeout": "Health check timeout",
+        "health_check_max_failed": "Health check max failed",
+    }.items():
+        value = proxy.get(key, "").strip()
+        if value and not _valid_positive_int(value):
+            errors.append(f"{label} must be a positive number.")
 
     return errors
 
@@ -218,6 +276,22 @@ def _valid_port(value: str) -> bool:
     except (TypeError, ValueError):
         return False
     return 1 <= port <= 65535
+
+
+def _valid_positive_int(value: str) -> bool:
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        return False
+    return number > 0
+
+
+def _valid_non_negative_int(value: str) -> bool:
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        return False
+    return number >= 0
 
 
 def _read_disabled_proxies(path: Path, active_names: set[str]) -> list[dict[str, str]]:
@@ -323,11 +397,19 @@ def _toml_common(data: dict) -> dict[str, str]:
     auth = data.get("auth", {}) if isinstance(data.get("auth"), dict) else {}
     transport = data.get("transport", {}) if isinstance(data.get("transport"), dict) else {}
     tls = transport.get("tls", {}) if isinstance(transport.get("tls"), dict) else {}
+    log = data.get("log", {}) if isinstance(data.get("log"), dict) else {}
     return {
         "server_addr": str(data.get("serverAddr", common_section.get("server_addr", common_section.get("serverAddr", "")))).strip(),
         "server_port": str(data.get("serverPort", common_section.get("server_port", common_section.get("serverPort", "")))).strip(),
         "token": str(auth.get("token", common_section.get("token", ""))).strip(),
         "tls_enable": str(tls.get("enable", common_section.get("tls_enable", ""))).lower().strip(),
+        "tls_server_name": str(tls.get("serverName", "")).strip(),
+        "transport_protocol": str(transport.get("protocol", "")).strip(),
+        "log_level": str(log.get("level", "")).strip(),
+        "log_file": str(log.get("to", "")).strip(),
+        "log_max_days": str(log.get("maxDays", "")).strip(),
+        "user": str(data.get("user", "")).strip(),
+        "login_fail_exit": str(data.get("loginFailExit", "")).lower().strip(),
     }
 
 
@@ -350,6 +432,46 @@ def _toml_proxy_lines(proxy: dict[str, str]):
         yield f"customDomains = [{', '.join(domains)}]"
     if proxy.get("remote_port", "").strip():
         yield f"remotePort = {int(proxy['remote_port'])}"
+    if proxy.get("subdomain", "").strip():
+        yield f"subdomain = {_toml_string(proxy['subdomain'])}"
+    if proxy.get("locations", "").strip():
+        locations = [_toml_string(item.strip()) for item in proxy["locations"].split(",") if item.strip()]
+        yield f"locations = [{', '.join(locations)}]"
+    if proxy.get("host_header_rewrite", "").strip():
+        yield f"hostHeaderRewrite = {_toml_string(proxy['host_header_rewrite'])}"
+    if proxy.get("proxy_protocol_version", "").strip():
+        yield f"proxyProtocolVersion = {_toml_string(proxy['proxy_protocol_version'])}"
+
+    health_lines = []
+    if proxy.get("health_check_type", "").strip():
+        health_lines.append(f"type = {_toml_string(proxy['health_check_type'])}")
+    if proxy.get("health_check_path", "").strip():
+        health_lines.append(f"path = {_toml_string(proxy['health_check_path'])}")
+    if proxy.get("health_check_interval", "").strip():
+        health_lines.append(f"intervalSeconds = {int(proxy['health_check_interval'])}")
+    if proxy.get("health_check_timeout", "").strip():
+        health_lines.append(f"timeoutSeconds = {int(proxy['health_check_timeout'])}")
+    if proxy.get("health_check_max_failed", "").strip():
+        health_lines.append(f"maxFailed = {int(proxy['health_check_max_failed'])}")
+    for line in health_lines:
+        yield f"healthCheck.{line}"
+
+    load_balancer_lines = []
+    if proxy.get("load_balancer_group", "").strip():
+        load_balancer_lines.append(f"group = {_toml_string(proxy['load_balancer_group'])}")
+    if proxy.get("load_balancer_group_key", "").strip():
+        load_balancer_lines.append(f"groupKey = {_toml_string(proxy['load_balancer_group_key'])}")
+    for line in load_balancer_lines:
+        yield f"loadBalancer.{line}"
+
+
+def _nested_get(data: dict, keys: list[str], default=""):
+    current = data
+    for key in keys:
+        if not isinstance(current, dict) or key not in current:
+            return default
+        current = current[key]
+    return current
 
 
 def _toml_string(value: str) -> str:
@@ -387,8 +509,17 @@ def _read_disabled_toml_proxies(path: Path, active_names: set[str]) -> list[dict
             "localPort": "local_port",
             "customDomains": "custom_domains",
             "remotePort": "remote_port",
+            "hostHeaderRewrite": "host_header_rewrite",
+            "proxyProtocolVersion": "proxy_protocol_version",
+            "healthCheck.type": "health_check_type",
+            "healthCheck.path": "health_check_path",
+            "healthCheck.intervalSeconds": "health_check_interval",
+            "healthCheck.timeoutSeconds": "health_check_timeout",
+            "healthCheck.maxFailed": "health_check_max_failed",
+            "loadBalancer.group": "load_balancer_group",
+            "loadBalancer.groupKey": "load_balancer_group_key",
         }.get(key, key)
-        if mapped_key == "custom_domains":
+        if mapped_key in {"custom_domains", "locations"}:
             value = _domains_to_string(_parse_basic_toml_value(key_match.group("value").strip()))
         current[mapped_key] = value
 

@@ -14,19 +14,84 @@
       <label>
         Server address
         <input name="server_addr" value="{{ common.get('server_addr', '') }}" required>
+        <span class="field-help">Address or DNS name of your FRP server. This is the server your local client connects to.</span>
       </label>
       <label>
         Server port
         <input name="server_port" type="number" min="1" max="65535" value="{{ common.get('server_port', '') }}" required>
+        <span class="field-help">FRP server bind port for client connections. This must match the server-side FRP config.</span>
       </label>
       <label>
         Token
         <input name="token" type="password" value="{{ common.get('token', '') }}" autocomplete="new-password">
+        <span class="field-help">Shared authentication token. Leave empty only when your FRP server does not require one.</span>
       </label>
       <label class="switch-row">
         <input name="tls_enable" type="checkbox" {% if common.get('tls_enable', '').lower() == 'true' %}checked{% endif %}>
-        <span>TLS enabled</span>
+        <span>
+          TLS enabled
+          <small>Encrypts the client connection to the FRP server. Keep enabled when your server supports TLS.</small>
+        </span>
       </label>
+
+      <details class="form-section full-row">
+        <summary>Advanced server options</summary>
+        <div class="form-grid">
+          <label>
+            Transport protocol
+            <select name="transport_protocol">
+              <option value="">Default</option>
+              {% for item in ["tcp", "kcp", "quic", "websocket", "wss"] %}
+                <option value="{{ item }}" {% if common.get('transport_protocol', '') == item %}selected{% endif %}>{{ item }}</option>
+              {% endfor %}
+            </select>
+            <span class="field-help">How frpc connects to the FRP server. Leave default unless your server is configured for another protocol.</span>
+          </label>
+          <label>
+            TLS server name
+            <input name="tls_server_name" value="{{ common.get('tls_server_name', '') }}" placeholder="frps.example.com">
+            <span class="field-help">Optional SNI name for TLS validation. Useful when the server certificate uses a DNS name.</span>
+          </label>
+          <label>
+            Client user
+            <input name="user" value="{{ common.get('user', '') }}" placeholder="site-a">
+            <span class="field-help">Optional prefix/namespace for proxy names. Use only if your FRP server setup expects it.</span>
+          </label>
+          <label class="switch-row">
+            <input name="login_fail_exit" type="checkbox" {% if common.get('login_fail_exit', '').lower() == 'true' %}checked{% endif %}>
+            <span>
+              Exit when login fails
+              <small>Stops frpc when it cannot log in. Leave off if you want systemd to keep retrying.</small>
+            </span>
+          </label>
+        </div>
+      </details>
+
+      <details class="form-section full-row">
+        <summary>Logging</summary>
+        <div class="form-grid">
+          <label>
+            Log level
+            <select name="log_level">
+              <option value="">Default</option>
+              {% for item in ["trace", "debug", "info", "warn", "error"] %}
+                <option value="{{ item }}" {% if common.get('log_level', '') == item %}selected{% endif %}>{{ item }}</option>
+              {% endfor %}
+            </select>
+            <span class="field-help">How much frpc should log. Use debug only while troubleshooting.</span>
+          </label>
+          <label>
+            Log file
+            <input name="log_file" value="{{ common.get('log_file', '') }}" placeholder="/var/log/frpc.log">
+            <span class="field-help">Optional file path for frpc logs. Leave empty to use the default output, usually systemd journal.</span>
+          </label>
+          <label>
+            Log max days
+            <input name="log_max_days" type="number" min="0" value="{{ common.get('log_max_days', '') }}">
+            <span class="field-help">How many days log files should be kept by frpc. Use 0 or empty for FRP defaults.</span>
+          </label>
+        </div>
+      </details>
       <div class="form-actions">
         <a class="ghost-button" href="{{ url_for('index') }}" title="Cancel">Cancel</a>
         <button class="primary-button" type="submit" title="Save server settings">Save</button>
