@@ -1,0 +1,58 @@
+serverAddr = "frps.example.com"
+serverPort = 7000
+user = "demo-site"
+loginFailExit = true
+
+[auth]
+token = "demo-token-change-me"
+
+[transport]
+protocol = "tcp"
+
+[transport.tls]
+enable = true
+serverName = "frps.example.com"
+
+[log]
+level = "info"
+
+[[proxies]]
+name = "proxmox-console"
+type = "https"
+localIP = "192.0.2.10"
+localPort = 8006
+customDomains = ["proxmox.example.com"]
+healthCheck.type = "tcp"
+healthCheck.intervalSeconds = 30
+
+[[proxies]]
+name = "recipes"
+type = "http"
+localIP = "192.0.2.20"
+localPort = 8080
+customDomains = ["recipes.example.com"]
+locations = ["/"]
+
+[[proxies]]
+name = "grafana"
+type = "http"
+localIP = "192.0.2.30"
+localPort = 3000
+customDomains = ["status.example.com"]
+hostHeaderRewrite = "grafana.internal.example"
+
+[[proxies]]
+name = "ssh-admin"
+type = "tcp"
+localIP = "192.0.2.40"
+localPort = 22
+remotePort = 2222
+proxyProtocolVersion = "v2"
+
+# Disabled proxies kept by FRP Gui. They are commented out so frpc cannot start them.
+# [[proxies]]
+# name = "staging-api"
+# type = "https"
+# localIP = "192.0.2.50"
+# localPort = 8443
+# customDomains = ["staging-api.example.com"]

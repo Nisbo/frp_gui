@@ -32,6 +32,34 @@ Current app version:
 - no database
 - no compile step
 
+## Screenshots
+
+The screenshots below use demo data from `docs/demo/frpc.toml`.
+
+### Dashboard
+
+![Dashboard](docs/screenshots/dashboard.jpg)
+
+### Proxy Wizard
+
+![Proxy wizard](docs/screenshots/proxy-wizard.jpg)
+
+### Proxy Editor
+
+![Proxy editor](docs/screenshots/proxy-edit.jpg)
+
+### Migration
+
+![Migration settings](docs/screenshots/settings-migration.jpg)
+
+### Updates
+
+![Update settings](docs/screenshots/settings-updates.jpg)
+
+### Dark Mode
+
+![Dark mode dashboard](docs/screenshots/dark-mode-dashboard.jpg)
+
 ## Quick Install On Debian 12
 
 These steps assume FRP is already installed and `frpc` already runs as a
