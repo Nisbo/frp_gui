@@ -87,6 +87,7 @@
       </div>
       <div class="action-group">
         {% if config_state.editable %}
+          <a class="ghost-button" href="{{ url_for('proxy_wizard') }}" title="Create proxy with guided wizard">Wizard</a>
           <a class="primary-button" href="{{ url_for('new_proxy') }}" title="Create new proxy">New proxy</a>
         {% else %}
           <a class="primary-button" href="{{ url_for('settings', tab='migration') }}" title="Open TOML migration">Migration required</a>
@@ -135,7 +136,10 @@
         <p>{{ proxy_counts.enabled }} enabled, {{ proxy_counts.disabled }} disabled.</p>
       </div>
       {% if config_state.editable %}
-        <a class="primary-button" href="{{ url_for('new_proxy') }}" title="Create new proxy">+</a>
+        <div class="action-group">
+          <a class="ghost-button" href="{{ url_for('proxy_wizard') }}" title="Create proxy with guided wizard">Wizard</a>
+          <a class="primary-button" href="{{ url_for('new_proxy') }}" title="Create new proxy">+</a>
+        </div>
       {% else %}
         <a class="ghost-button" href="{{ url_for('settings', tab='migration') }}" title="Open TOML migration">Read-only</a>
       {% endif %}

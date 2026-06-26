@@ -107,4 +107,22 @@
     networkForm.addEventListener("input", renderPreview);
     renderPreview();
   }
+
+  const wizardForm = document.querySelector(".wizard-form");
+  if (wizardForm) {
+    const portInput = wizardForm.elements.local_port;
+    const updateWizardDefaults = () => {
+      const selectedType = wizardForm.elements.type?.value || "https";
+      if (!portInput || portInput.dataset.userEdited === "true") return;
+      portInput.value = selectedType === "http" ? "80" : "443";
+    };
+
+    portInput?.addEventListener("input", () => {
+      portInput.dataset.userEdited = "true";
+    });
+    wizardForm.querySelectorAll("input[name='type']").forEach((input) => {
+      input.addEventListener("change", updateWizardDefaults);
+    });
+    updateWizardDefaults();
+  }
 })();

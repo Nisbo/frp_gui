@@ -6,7 +6,7 @@ TOML is the editable format; existing INI configs can be migrated in the GUI.
 Current app version:
 
 ```text
-0.1.23
+0.1.24
 ```
 
 ## Quick Install On Debian 12
@@ -106,7 +106,7 @@ Recommended release workflow:
 ```
 
 The release check compares your installed version with the latest GitHub
-release tag, for example `0.1.23`. When updates are available, the GUI shows
+release tag, for example `0.1.24`. When updates are available, the GUI shows
 release notes for every official release newer than your installed version.
 
 If the server cannot download the release directly, use the manual fallback:
@@ -319,6 +319,8 @@ FRP Gui keeps the default forms small and shows advanced options in collapsible
 sections. Empty optional fields are not written to the config.
 Proxy forms show standard settings first and keep them open by default. Advanced
 options are grouped below with a short explanation so new users can ignore them.
+The proxy wizard guides non-expert users through the common web-domain setup and
+then uses the same validation and save path as the expert form.
 
 Server options include:
 

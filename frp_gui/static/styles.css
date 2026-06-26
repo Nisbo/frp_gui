@@ -343,10 +343,18 @@ h2 {
 
 label {
   display: grid;
+  align-content: start;
   gap: 7px;
   color: var(--muted);
   font-size: .88rem;
   font-weight: 700;
+}
+
+.field-label {
+  color: var(--muted);
+  font-size: .88rem;
+  font-weight: 800;
+  min-height: 1.2em;
 }
 
 .field-help,
@@ -440,6 +448,18 @@ select:focus {
   padding: 14px;
 }
 
+.form-section .form-grid > label {
+  grid-template-rows: auto 44px minmax(3.4em, auto);
+}
+
+.section-note {
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: .88rem;
+  line-height: 1.45;
+  padding: 12px 14px;
+}
+
 .standard-section {
   border-color: color-mix(in srgb, var(--accent) 36%, var(--line));
 }
@@ -465,6 +485,85 @@ select:focus {
 }
 
 .advanced-intro span {
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.wizard-form {
+  display: grid;
+  gap: 16px;
+}
+
+.wizard-step {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.wizard-step h3 {
+  margin: 0 0 12px;
+  font-size: 1.05rem;
+}
+
+.wizard-step-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 900;
+}
+
+.choice-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.choice-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  padding: 13px;
+}
+
+.choice-card input {
+  width: 18px;
+  min-height: 18px;
+  margin-top: 3px;
+}
+
+.choice-card span {
+  display: grid;
+  gap: 5px;
+}
+
+.choice-card small {
+  color: var(--muted);
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.wizard-summary {
+  display: grid;
+  gap: 5px;
+  border: 1px solid color-mix(in srgb, var(--amber) 70%, var(--line));
+  border-left-width: 7px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--amber) 13%, transparent);
+  padding: 14px;
+}
+
+.wizard-summary span {
   color: var(--muted);
   line-height: 1.45;
 }

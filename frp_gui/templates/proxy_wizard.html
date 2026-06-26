@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="panel proxy-panel">
+    <div class="panel-head">
+      <div>
+        <h2>Proxy wizard</h2>
+        <p>Create a common web proxy with guided questions.</p>
+      </div>
+      <a class="ghost-button" href="{{ url_for('new_proxy') }}" title="Open expert form">Expert form</a>
+    </div>
+
+    <form class="wizard-form" method="post" action="{{ url_for('create_proxy') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="enabled_form" value="1">
+      <input type="hidden" name="enabled" value="on">
+      <input type="hidden" name="remote_port" value="">
+
+      <section class="wizard-step">
+        <span class="wizard-step-number">1</span>
+        <div>
+          <h3>What do you want to do?</h3>
+          <label class="choice-card">
+            <input type="radio" name="wizard_goal" value="web-domain" checked>
+            <span>
+              Make a local server or service available through an external domain
+              <small>Best for web apps such as Proxmox, dashboards, recipe apps, admin panels or websites.</small>
+            </span>
+          </label>
+        </div>
+      </section>
+
+      <section class="wizard-step">
+        <span class="wizard-step-number">2</span>
+        <div>
+          <h3>Should FRP connect to the local service with HTTP or HTTPS?</h3>
+          <div class="choice-grid">
+            <label class="choice-card">
+              <input type="radio" name="type" value="https" checked>
+              <span>
+                HTTPS local service
+                <small>Use this when the target service already serves HTTPS locally, for example Proxmox on port 443 or 8006. The target service needs its own certificate.</small>
+              </span>
+            </label>
+            <label class="choice-card">
+              <input type="radio" name="type" value="http">
+              <span>
+                HTTP local service
+                <small>Use this when the target service is plain HTTP locally, for example a web app on port 80 or 8080.</small>
+              </span>
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <section class="wizard-step">
+        <span class="wizard-step-number">3</span>
+        <div>
+          <h3>Where is the local service?</h3>
+          <div class="form-grid">
+            <label>
+              <span class="field-label">Local IP / host</span>
+              <input name="local_ip" value="127.0.0.1" required>
+              <span class="field-help">Use the address frpc can reach from this machine. For another device in your LAN, use its LAN IP.</span>
+            </label>
+            <label>
+              <span class="field-label">Local port</span>
+              <input name="local_port" type="number" min="1" max="65535" value="443" required>
+              <span class="field-help">Use the port of the local service. Common examples: HTTPS 443, HTTP 80, Proxmox 8006.</span>
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <section class="wizard-step">
+        <span class="wizard-step-number">4</span>
+        <div>
+          <h3>Which external domain should open it?</h3>
+          <div class="form-grid">
+            <label>
+              <span class="field-label">Domain</span>
+              <input name="custom_domains" placeholder="app.example.com" required>
+              <span class="field-help">This domain must point to your FRP server. The FRP server also needs HTTP/HTTPS routing configured.</span>
+            </label>
+            <label>
+              <span class="field-label">Proxy name</span>
+              <input name="name" placeholder="app-gui" required maxlength="64">
+              <span class="field-help">Internal name for this entry. A short name based on the service is easiest to recognize later.</span>
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <section class="wizard-summary">
+        <strong>Before saving</strong>
+        <span>FRP Gui will create the proxy entry, but the change only becomes active after restarting the FRP Client service. For HTTPS, FRP forwards HTTPS to your local service; it does not create a certificate for the target service.</span>
+      </section>
+
+      <div class="form-actions split-actions">
+        <a class="ghost-button" href="{{ url_for('index') }}" title="Cancel">Cancel</a>
+        <button class="primary-button" type="submit" title="Create proxy">Create proxy</button>
+      </div>
+    </form>
+  </section>
+{% endblock %}

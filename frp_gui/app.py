@@ -640,6 +640,12 @@ def create_app() -> Flask:
             return redirect(url_for("index"))
         return render_template("proxy_form.html", proxy={}, mode="new")
 
+    @app.get("/proxy/wizard")
+    def proxy_wizard():
+        if not _require_editable_config(app):
+            return redirect(url_for("index"))
+        return render_template("proxy_wizard.html")
+
     @app.post("/proxy")
     def create_proxy():
         if not _require_editable_config(app):
