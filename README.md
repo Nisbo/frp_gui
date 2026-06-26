@@ -6,7 +6,7 @@ TOML is the editable format; existing INI configs can be migrated in the GUI.
 Current app version:
 
 ```text
-0.1.20
+0.1.21
 ```
 
 ## Quick Install On Debian 12
@@ -106,7 +106,7 @@ Recommended release workflow:
 ```
 
 The release check compares your installed version with the latest GitHub
-release tag, for example `0.1.20`. When updates are available, the GUI shows
+release tag, for example `0.1.21`. When updates are available, the GUI shows
 release notes for every official release newer than your installed version.
 
 If the server cannot download the release directly, use the manual fallback:
@@ -308,6 +308,10 @@ configured `frpc` systemd service. If the service still starts with
 `frpc.ini`, the GUI shows a red mismatch warning and keeps editing locked until
 both paths point to the same TOML file. After the systemd path is updated,
 restart the FRP Client service from the GUI.
+
+Runtime settings are stored in `/etc/frp-gui.env`. FRP Gui reloads these values
+on every request, so systems running multiple Gunicorn workers show the same
+config path immediately after migration.
 
 ## Security Notes
 

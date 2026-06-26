@@ -68,6 +68,7 @@ def create_app() -> Flask:
 
     @app.before_request
     def require_login_and_csrf():
+        _sync_runtime_settings_from_env(app)
         if request.endpoint in {"login", "login_post", "static"}:
             return None
 
@@ -360,6 +361,11 @@ def create_app() -> Flask:
             return redirect(url_for("settings", tab="network"))
 
         _apply_network_to_app(app, network)
+        try:
+            _persist_network_settings(app)
+        except OSError as exc:
+            flash(f"Network settings updated, but the environment file could not be saved: {exc}", "warning")
+            return redirect(url_for("settings", tab="network"))
         flash("Network settings updated for this app process.", "success")
         return redirect(url_for("settings", tab="network"))
 
@@ -383,6 +389,7 @@ def create_app() -> Flask:
         try:
             network = _network_from_form()
             _apply_network_to_app(app, network)
+            _persist_network_settings(app)
             write_nginx_config(network)
             ok, output = test_nginx_config()
         except OSError as exc:
@@ -1380,12 +1387,74 @@ def _store_app_update_result(result) -> None:
     }
 
 
+def _sync_runtime_settings_from_env(app: Flask) -> None:
+    env_values = _read_env_file(Path(app.config["ENV_FILE"]))
+    if not env_values:
+        return
+
+    if env_values.get("FRP_CONFIG_PATH"):
+        app.config["FRP_CONFIG_PATH"] = Path(env_values["FRP_CONFIG_PATH"])
+    if env_values.get("FRPC_BINARY"):
+        app.config["FRPC_BINARY"] = env_values["FRPC_BINARY"]
+    if env_values.get("FRPC_SERVICE"):
+        app.config["FRPC_SERVICE"] = env_values["FRPC_SERVICE"]
+    if "FRP_GUI_ALLOW_SYSTEMCTL" in env_values:
+        app.config["ALLOW_SYSTEMCTL"] = env_values["FRP_GUI_ALLOW_SYSTEMCTL"] == "1"
+    if "FRP_GUI_PASSWORD" in env_values:
+        app.config["ADMIN_PASSWORD"] = env_values["FRP_GUI_PASSWORD"]
+    if env_values.get("FRP_GUI_HOST"):
+        app.config["FRP_GUI_HOST"] = env_values["FRP_GUI_HOST"]
+    if env_values.get("FRP_GUI_PORT"):
+        app.config["FRP_GUI_PORT"] = _env_int(env_values["FRP_GUI_PORT"], app.config["FRP_GUI_PORT"])
+    if env_values.get("FRP_GUI_PUBLIC_PORT"):
+        app.config["FRP_GUI_PUBLIC_PORT"] = _env_int(env_values["FRP_GUI_PUBLIC_PORT"], app.config["FRP_GUI_PUBLIC_PORT"])
+    if env_values.get("FRP_GUI_SERVER_NAME"):
+        app.config["FRP_GUI_SERVER_NAME"] = env_values["FRP_GUI_SERVER_NAME"]
+    if env_values.get("FRP_GUI_NGINX_SITE_PATH"):
+        app.config["NGINX_SITE_PATH"] = Path(env_values["FRP_GUI_NGINX_SITE_PATH"])
+
+
+def _read_env_file(path: Path) -> dict[str, str]:
+    if not path.exists():
+        return {}
+
+    values: dict[str, str] = {}
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return {}
+
+    for line in lines:
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#") or "=" not in stripped:
+            continue
+        key, value = stripped.split("=", 1)
+        values[key.strip()] = value.strip().strip('"').strip("'")
+    return values
+
+
+def _env_int(value: str, fallback: int) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return fallback
+
+
 def _persist_runtime_settings(app: Flask) -> None:
     env_file = Path(app.config["ENV_FILE"])
     _update_env_value(env_file, "FRP_CONFIG_PATH", str(app.config["FRP_CONFIG_PATH"]))
     _update_env_value(env_file, "FRPC_BINARY", str(app.config["FRPC_BINARY"]))
     _update_env_value(env_file, "FRPC_SERVICE", str(app.config["FRPC_SERVICE"]))
     _update_env_value(env_file, "FRP_GUI_ALLOW_SYSTEMCTL", "1" if app.config["ALLOW_SYSTEMCTL"] else "0")
+
+
+def _persist_network_settings(app: Flask) -> None:
+    env_file = Path(app.config["ENV_FILE"])
+    _update_env_value(env_file, "FRP_GUI_HOST", str(app.config["FRP_GUI_HOST"]))
+    _update_env_value(env_file, "FRP_GUI_PORT", str(app.config["FRP_GUI_PORT"]))
+    _update_env_value(env_file, "FRP_GUI_PUBLIC_PORT", str(app.config["FRP_GUI_PUBLIC_PORT"]))
+    _update_env_value(env_file, "FRP_GUI_SERVER_NAME", str(app.config["FRP_GUI_SERVER_NAME"]))
+    _update_env_value(env_file, "FRP_GUI_NGINX_SITE_PATH", str(app.config["NGINX_SITE_PATH"]))
 
 
 def _update_env_value(path: Path, key: str, value: str) -> None:
