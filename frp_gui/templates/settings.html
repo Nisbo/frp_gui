@@ -537,6 +537,17 @@
       </div>
     </div>
 
+    {% if config_state.systemd_mismatch and frpc_unit.available %}
+      <form class="migration-next-action" method="post" action="{{ url_for('update_systemd_config_path') }}" data-confirm="Update the configured frpc systemd service to use the active GUI config path? FRP Gui creates a backup of the unit file, replaces only the detected config path in ExecStart, and runs systemctl daemon-reload. Restart FRP Client afterwards.">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div>
+          <strong>Step 2: update systemd config path</strong>
+          <span>The service currently starts with <code>{{ config_state.systemd_config_path }}</code>. FRP Gui is using <code>{{ config_path }}</code>. Update systemd before restarting FRP Client.</span>
+        </div>
+        <button class="primary-button" type="submit" title="Update systemd config path">Update systemd config path</button>
+      </form>
+    {% endif %}
+
     <div class="diagnostics config-state-diagnostics">
       {% for item in config_state.messages %}
         <div class="diagnostic {{ item.status }}">
@@ -573,27 +584,13 @@
       </div>
     </dl>
 
-    {% if config_state.systemd_mismatch and frpc_unit.available %}
-      <form class="form-grid single migration-form" method="post" action="{{ url_for('update_systemd_config_path') }}" data-confirm="Update the configured frpc systemd service to use the active GUI config path? FRP Gui creates a backup of the unit file, replaces only the detected config path in ExecStart, and runs systemctl daemon-reload. Restart FRP Client afterwards.">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <div class="coming-soon error-note">
-          <strong>systemd path update available</strong>
-          <span>The service currently starts with <code>{{ config_state.systemd_config_path }}</code>. FRP Gui is using <code>{{ config_path }}</code>.</span>
-        </div>
-        <div class="form-actions split-actions">
-          <a class="ghost-button" href="{{ url_for('settings', tab='general') }}" title="Review systemd unit">Review unit</a>
-          <button class="primary-button" type="submit" title="Update systemd config path">Update systemd config path</button>
-        </div>
-      </form>
-    {% endif %}
-
     {% if config_state.extension_format == "INI" %}
-      <form class="form-grid single migration-form" method="post" action="{{ url_for('convert_to_toml') }}" data-confirm="Convert the active INI config to TOML? FRP Gui creates a config backup, writes the TOML file, verifies it with frpc, and selects the TOML path for this running GUI. systemd is not changed automatically yet.">
+      <form class="form-grid single migration-form" method="post" action="{{ url_for('convert_to_toml') }}" data-confirm="Convert the active INI config to TOML? FRP Gui creates a config backup, writes or replaces the TOML target file, verifies it with frpc, saves the TOML path for FRP Gui, and then shows the systemd update step.">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <label>
           TOML target path
           <input name="target_path" value="{{ migration_target }}" required>
-          <span class="field-help">Usually the same directory as the current INI, for example <code>/opt/frp/frpc.toml</code>. Existing files are overwritten only after a backup of the current INI is created.</span>
+          <span class="field-help">Usually the same directory as the current INI, for example <code>/opt/frp/frpc.toml</code>. If this TOML file already exists, it will be replaced after a backup of the current INI has been created.</span>
         </label>
         <div class="form-actions split-actions">
           <a class="ghost-button" href="{{ url_for('index') }}" title="Back to dashboard">Back</a>

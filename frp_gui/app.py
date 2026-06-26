@@ -99,7 +99,7 @@ def create_app() -> Flask:
             "repo_url": REPO_URL,
             "csrf_token": session["csrf_token"],
             "diagnostics": diagnostics,
-            "restart_required": session.get("restart_required", False),
+            "restart_required": _restart_required_visible(app),
             "frpc_service_control": _service_control_available(app),
             "app_update_pending_restart": app_update_pending_restart,
         }
@@ -249,7 +249,12 @@ def create_app() -> Flask:
         app.config["FRPC_BINARY"] = frpc_binary
         app.config["FRPC_SERVICE"] = frpc_service
         app.config["ALLOW_SYSTEMCTL"] = request.form.get("allow_systemctl") == "on"
-        flash("Runtime settings updated for this app process.", "success")
+        try:
+            _persist_runtime_settings(app)
+        except OSError as exc:
+            flash(f"Runtime settings updated, but the environment file could not be saved: {exc}", "warning")
+            return redirect(url_for("settings", tab="general"))
+        flash("Settings saved.", "success")
         return redirect(url_for("settings", tab="general"))
 
     @app.post("/settings/migration/convert-to-toml")
@@ -279,8 +284,13 @@ def create_app() -> Flask:
             flash(output or "TOML migration failed because frpc verify did not accept the generated file.", "error")
             return redirect(url_for("settings", tab="migration"))
 
-        _mark_restart_required()
-        flash("TOML config created and selected. Check the systemd mismatch warning before restarting FRP Client.", "success")
+        try:
+            _update_env_value(Path(app.config["ENV_FILE"]), "FRP_CONFIG_PATH", str(target_path))
+        except OSError as exc:
+            flash(f"TOML config created, but the environment file could not be saved: {exc}", "warning")
+            return redirect(url_for("settings", tab="migration"))
+
+        flash("TOML config created and selected. Next, update the systemd config path before restarting FRP Client.", "success")
         return redirect(url_for("settings", tab="migration"))
 
     @app.post("/settings/migration/update-systemd-config")
@@ -806,6 +816,13 @@ def _require_editable_config(app: Flask) -> bool:
 
 def _mark_restart_required() -> None:
     session["restart_required"] = True
+
+
+def _restart_required_visible(app: Flask) -> bool:
+    if not session.get("restart_required", False):
+        return False
+    state = _config_state(Path(app.config["FRP_CONFIG_PATH"]), _frpc_systemd_unit(app.config["FRPC_SERVICE"]))
+    return not bool(state["systemd_mismatch"])
 
 
 def _proxy_from_form(existing: dict[str, str] | None = None) -> dict[str, str]:
@@ -1361,6 +1378,14 @@ def _store_app_update_result(result) -> None:
         "details": result.details,
         "backup_path": str(result.backup_path) if result.backup_path else None,
     }
+
+
+def _persist_runtime_settings(app: Flask) -> None:
+    env_file = Path(app.config["ENV_FILE"])
+    _update_env_value(env_file, "FRP_CONFIG_PATH", str(app.config["FRP_CONFIG_PATH"]))
+    _update_env_value(env_file, "FRPC_BINARY", str(app.config["FRPC_BINARY"]))
+    _update_env_value(env_file, "FRPC_SERVICE", str(app.config["FRPC_SERVICE"]))
+    _update_env_value(env_file, "FRP_GUI_ALLOW_SYSTEMCTL", "1" if app.config["ALLOW_SYSTEMCTL"] else "0")
 
 
 def _update_env_value(path: Path, key: str, value: str) -> None:

@@ -660,6 +660,29 @@ tr:last-child td {
   margin-bottom: 18px;
 }
 
+.migration-next-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border: 2px solid color-mix(in srgb, var(--danger) 70%, var(--line));
+  border-left-width: 7px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+  margin-bottom: 18px;
+  padding: 14px;
+}
+
+.migration-next-action div {
+  display: grid;
+  gap: 5px;
+}
+
+.migration-next-action span {
+  color: var(--muted);
+  line-height: 1.45;
+}
+
 .error-note {
   border-color: color-mix(in srgb, var(--danger) 70%, var(--line));
 }

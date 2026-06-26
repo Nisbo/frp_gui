@@ -6,7 +6,7 @@ TOML is the editable format; existing INI configs can be migrated in the GUI.
 Current app version:
 
 ```text
-0.1.19
+0.1.20
 ```
 
 ## Quick Install On Debian 12
@@ -106,7 +106,7 @@ Recommended release workflow:
 ```
 
 The release check compares your installed version with the latest GitHub
-release tag, for example `0.1.19`. When updates are available, the GUI shows
+release tag, for example `0.1.20`. When updates are available, the GUI shows
 release notes for every official release newer than your installed version.
 
 If the server cannot download the release directly, use the manual fallback:
@@ -300,12 +300,14 @@ The migration step:
 - creates a backup
 - writes a TOML file, normally `frpc.toml`
 - runs `frpc verify -c /opt/frp/frpc.toml`
-- selects the TOML path for the running GUI
+- saves the TOML path for FRP Gui
+- shows the systemd update step when the `frpc` service still starts with INI
 
 FRP Gui also compares its active config path with the config passed in the
 configured `frpc` systemd service. If the service still starts with
 `frpc.ini`, the GUI shows a red mismatch warning and keeps editing locked until
-both paths point to the same TOML file.
+both paths point to the same TOML file. After the systemd path is updated,
+restart the FRP Client service from the GUI.
 
 ## Security Notes
 
