@@ -295,6 +295,11 @@ h2 {
   padding-top: 10px;
 }
 
+.operation-secondary-row {
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+
 .systemd-toggle-row > span {
   margin-right: auto;
 }

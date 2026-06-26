@@ -64,17 +64,21 @@
           <strong>{{ gui_running_label }}</strong>
         </div>
       </div>
-      <div class="action-group">
+      <div class="service-controls">
         {% if app_service_control %}
-          <form method="post" action="{{ url_for('restart_app_service') }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <button class="primary-button" type="submit" title="Restart FRP Gui">Restart</button>
-          </form>
+          <div class="action-group">
+            <form method="post" action="{{ url_for('restart_app_service') }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <button class="primary-button" type="submit" title="Restart FRP Gui">Restart</button>
+            </form>
+          </div>
         {% endif %}
-        <form method="post" action="{{ url_for('check_update') }}">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-          <button class="ghost-button" type="submit" title="Check FRP Gui updates">Check updates</button>
-        </form>
+        <div class="action-group operation-secondary-row">
+          <form method="post" action="{{ url_for('check_update') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button class="ghost-button" type="submit" title="Check FRP Gui updates">Check updates</button>
+          </form>
+        </div>
       </div>
     </div>
 
@@ -85,14 +89,20 @@
           <strong>{{ proxy_counts.enabled }} / {{ proxy_counts.total }} enabled</strong>
         </div>
       </div>
-      <div class="action-group">
+      <div class="service-controls">
         {% if config_state.editable %}
-          <a class="ghost-button" href="{{ url_for('proxy_wizard') }}" title="Create proxy with guided wizard">Wizard</a>
-          <a class="primary-button" href="{{ url_for('new_proxy') }}" title="Create new proxy">New proxy</a>
+          <div class="action-group">
+            <a class="ghost-button" href="{{ url_for('proxy_wizard') }}" title="Create proxy with guided wizard">Wizard</a>
+            <a class="primary-button" href="{{ url_for('new_proxy') }}" title="Create new proxy">New proxy</a>
+          </div>
         {% else %}
-          <a class="primary-button" href="{{ url_for('settings', tab='migration') }}" title="Open TOML migration">Migration required</a>
+          <div class="action-group">
+            <a class="primary-button" href="{{ url_for('settings', tab='migration') }}" title="Open TOML migration">Migration required</a>
+          </div>
         {% endif %}
-        <a class="ghost-button" href="{{ url_for('backups') }}" title="Open backup list">Backups</a>
+        <div class="action-group operation-secondary-row">
+          <a class="ghost-button" href="{{ url_for('backups') }}" title="Open backup list">Backups</a>
+        </div>
       </div>
     </div>
   </section>
@@ -101,7 +111,7 @@
     <div class="panel-head">
       <div>
         <h2>Server</h2>
-        <p>Base settings from the <code>[common]</code> section.</p>
+        <p>Connection settings used by FRP Client to reach the FRP server.</p>
       </div>
       {% if config_state.editable %}
         <a class="ghost-button" href="{{ url_for('edit_server') }}" title="Edit server settings">Edit</a>
