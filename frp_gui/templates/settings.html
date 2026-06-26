@@ -53,7 +53,7 @@
       <label>
         systemd service
         <input name="frpc_service" value="{{ frpc_service }}" required>
-        <span class="field-help">Name of the service used for start, stop, restart, enable and disable actions, for example <code>frpc</code>.</span>
+        <span class="field-help">Name of the service used for start, stop, restart, enable and disable actions, for example <code>frpc</code>. The unit must start <code>frpc</code>; other systemd services are rejected.</span>
       </label>
 
       <label class="switch-row service-toggle">

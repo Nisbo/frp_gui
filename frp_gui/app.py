@@ -175,14 +175,18 @@ def create_app() -> Flask:
         active_tab = request.args.get("tab", "general")
         if active_tab not in {"general", "network", "security", "updates", "migration"}:
             active_tab = "general"
+        form_values = session.pop("settings_form_values", {})
+        shown_config_path = Path(form_values.get("config_path") or config_path)
+        shown_frpc_binary = form_values.get("frpc_binary") or app.config["FRPC_BINARY"]
+        shown_frpc_service = form_values.get("frpc_service") or app.config["FRPC_SERVICE"]
         return render_template(
             "settings.html",
             active_tab=active_tab,
-            config_path=config_path,
-            config_format=_config_format(config_path),
-            frpc_binary=app.config["FRPC_BINARY"],
-            frpc_service=app.config["FRPC_SERVICE"],
-            frpc_unit=_frpc_systemd_unit(app.config["FRPC_SERVICE"]),
+            config_path=shown_config_path,
+            config_format=_config_format(shown_config_path),
+            frpc_binary=shown_frpc_binary,
+            frpc_service=shown_frpc_service,
+            frpc_unit=_frpc_systemd_unit(shown_frpc_service),
             app_root=Path(app.root_path).parent,
             configured_install_path=app.config["INSTALL_PATH"],
             env_file=app.config["ENV_FILE"],
@@ -218,8 +222,20 @@ def create_app() -> Flask:
             flash(error, "error")
             return redirect(url_for("settings", tab="general"))
 
-        app.config["FRPC_BINARY"] = request.form.get("frpc_binary", "").strip() or app.config["FRPC_BINARY"]
-        app.config["FRPC_SERVICE"] = request.form.get("frpc_service", "").strip() or app.config["FRPC_SERVICE"]
+        frpc_binary = request.form.get("frpc_binary", "").strip() or app.config["FRPC_BINARY"]
+        frpc_service = request.form.get("frpc_service", "").strip() or app.config["FRPC_SERVICE"]
+        service_error = _frpc_service_validation_error(frpc_service)
+        if service_error:
+            session["settings_form_values"] = {
+                "config_path": str(config_path),
+                "frpc_binary": frpc_binary,
+                "frpc_service": frpc_service,
+            }
+            flash(service_error, "error")
+            return redirect(url_for("settings", tab="general"))
+
+        app.config["FRPC_BINARY"] = frpc_binary
+        app.config["FRPC_SERVICE"] = frpc_service
         app.config["ALLOW_SYSTEMCTL"] = request.form.get("allow_systemctl") == "on"
         flash("Runtime settings updated for this app process.", "success")
         return redirect(url_for("settings", tab="general"))
@@ -319,6 +335,11 @@ def create_app() -> Flask:
         config_path = Path(config_value.strip()) if config_value is not None else Path(app.config["FRP_CONFIG_PATH"])
         frpc_binary = binary_value.strip() if binary_value is not None else app.config["FRPC_BINARY"]
         frpc_service = service_value.strip() if service_value is not None else app.config["FRPC_SERVICE"]
+        session["settings_form_values"] = {
+            "config_path": str(config_path),
+            "frpc_binary": frpc_binary,
+            "frpc_service": frpc_service,
+        }
         diagnostics = _settings_diagnostics(config_path, frpc_binary, frpc_service)
         session["diagnostics"] = diagnostics
         summary = _diagnostics_summary(diagnostics)
@@ -855,13 +876,24 @@ def _frpc_systemd_unit(service: str) -> dict[str, str | bool]:
         text=True,
     )
     content = cat.stdout.strip() if cat.returncode == 0 else cat.stderr.strip()
+    exec_start = values.get("ExecStart", "")
+    if exec_start and not _looks_like_frpc_exec(exec_start):
+        return {
+            "available": False,
+            "message": f"Configured service '{service}' does not appear to start frpc.",
+            "service": service,
+            "fragment_path": values.get("FragmentPath", ""),
+            "drop_in_paths": values.get("DropInPaths", ""),
+            "exec_start": exec_start,
+            "content": "",
+        }
     return {
         "available": True,
         "message": "",
         "service": service,
         "fragment_path": values.get("FragmentPath", ""),
         "drop_in_paths": values.get("DropInPaths", ""),
-        "exec_start": values.get("ExecStart", ""),
+        "exec_start": exec_start,
         "content": content,
     }
 
@@ -873,6 +905,17 @@ def _parse_systemctl_properties(output: str) -> dict[str, str]:
         if separator:
             values[key] = value
     return values
+
+
+def _frpc_service_validation_error(service: str) -> str | None:
+    unit = _frpc_systemd_unit(service)
+    if not unit["available"] and unit["message"] and "does not appear to start frpc" in str(unit["message"]):
+        return str(unit["message"])
+    return None
+
+
+def _looks_like_frpc_exec(value: str) -> bool:
+    return bool(re.search(r"(?<![\w.-])frpc(?![\w.-])", value))
 
 
 def _frpc_version(app: Flask) -> str | None:
@@ -1004,6 +1047,12 @@ def _settings_diagnostics(config_path: Path, frpc_binary: str, frpc_service: str
             diagnostics.append({"label": "systemd service", "status": "ok", "message": f"Service exists: {frpc_service}"})
         else:
             diagnostics.append({"label": "systemd service", "status": "error", "message": result.stderr.strip() or f"Service not found: {frpc_service}"})
+
+        service_error = _frpc_service_validation_error(frpc_service)
+        if service_error:
+            diagnostics.append({"label": "FRP Client service", "status": "error", "message": service_error})
+        else:
+            diagnostics.append({"label": "FRP Client service", "status": "ok", "message": "Service ExecStart appears to use frpc."})
 
     return diagnostics
 
