@@ -182,6 +182,7 @@ def create_app() -> Flask:
             config_format=_config_format(config_path),
             frpc_binary=app.config["FRPC_BINARY"],
             frpc_service=app.config["FRPC_SERVICE"],
+            frpc_unit=_frpc_systemd_unit(app.config["FRPC_SERVICE"]),
             app_root=Path(app.root_path).parent,
             configured_install_path=app.config["INSTALL_PATH"],
             env_file=app.config["ENV_FILE"],
@@ -803,6 +804,75 @@ def _systemd_enabled_status(service: str) -> str:
     except OSError:
         return "unknown"
     return result.stdout.strip() or "unknown"
+
+
+def _frpc_systemd_unit(service: str) -> dict[str, str | bool]:
+    if not service:
+        return {
+            "available": False,
+            "message": "No systemd service configured.",
+            "service": "",
+            "fragment_path": "",
+            "drop_in_paths": "",
+            "exec_start": "",
+            "content": "",
+        }
+
+    systemctl = shutil.which("systemctl")
+    if not systemctl:
+        return {
+            "available": False,
+            "message": "systemctl is not available in this environment.",
+            "service": service,
+            "fragment_path": "",
+            "drop_in_paths": "",
+            "exec_start": "",
+            "content": "",
+        }
+
+    show = subprocess.run(
+        [systemctl, "show", service, "--property=FragmentPath", "--property=DropInPaths", "--property=ExecStart", "--no-pager"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if show.returncode != 0:
+        return {
+            "available": False,
+            "message": show.stderr.strip() or f"systemd service not found: {service}",
+            "service": service,
+            "fragment_path": "",
+            "drop_in_paths": "",
+            "exec_start": "",
+            "content": "",
+        }
+
+    values = _parse_systemctl_properties(show.stdout)
+    cat = subprocess.run(
+        [systemctl, "cat", service, "--no-pager"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    content = cat.stdout.strip() if cat.returncode == 0 else cat.stderr.strip()
+    return {
+        "available": True,
+        "message": "",
+        "service": service,
+        "fragment_path": values.get("FragmentPath", ""),
+        "drop_in_paths": values.get("DropInPaths", ""),
+        "exec_start": values.get("ExecStart", ""),
+        "content": content,
+    }
+
+
+def _parse_systemctl_properties(output: str) -> dict[str, str]:
+    values: dict[str, str] = {}
+    for line in output.splitlines():
+        key, separator, value = line.partition("=")
+        if separator:
+            values[key] = value
+    return values
 
 
 def _frpc_version(app: Flask) -> str | None:

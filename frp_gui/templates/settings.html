@@ -74,6 +74,47 @@
   <section class="panel settings-panel">
     <div class="panel-head">
       <div>
+        <h2>FRP Client systemd unit</h2>
+        <p>Read-only view of how the configured FRP Client service is started.</p>
+      </div>
+    </div>
+
+    {% if frpc_unit.available %}
+      <dl class="detail-grid two">
+        <div>
+          <dt>Service</dt>
+          <dd>{{ frpc_unit.service }}</dd>
+        </div>
+        <div>
+          <dt>Unit file</dt>
+          <dd>{{ frpc_unit.fragment_path or "Unknown" }}</dd>
+        </div>
+        <div>
+          <dt>Drop-ins</dt>
+          <dd>{{ frpc_unit.drop_in_paths or "None" }}</dd>
+        </div>
+        <div>
+          <dt>ExecStart</dt>
+          <dd>{{ frpc_unit.exec_start or "Unknown" }}</dd>
+        </div>
+      </dl>
+
+      <div class="coming-soon nginx-preview-note">
+        <strong>Unit preview</strong>
+        <span>This is useful before migration because it shows which config file the service currently passes to <code>frpc</code>.</span>
+      </div>
+      <pre class="config-preview"><code>{{ frpc_unit.content }}</code></pre>
+    {% else %}
+      <div class="coming-soon">
+        <strong>systemd unit unavailable</strong>
+        <span>{{ frpc_unit.message }}</span>
+      </div>
+    {% endif %}
+  </section>
+
+  <section class="panel settings-panel">
+    <div class="panel-head">
+      <div>
         <h2>Application</h2>
         <p>Read-only information about this running FRP Gui instance.</p>
       </div>
