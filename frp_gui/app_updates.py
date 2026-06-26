@@ -17,7 +17,7 @@ from .version import APP_VERSION
 
 
 PROJECT_DIRS = ("frp_gui", "scripts", "sample")
-PROJECT_FILES = ("run.py", "requirements.txt", "README.md", ".gitignore")
+PROJECT_FILES = ("run.py", "README.md", ".gitignore")
 APP_BACKUP_META_FILE = "backup-meta.txt"
 
 

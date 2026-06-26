@@ -37,8 +37,17 @@ Current app version:
 These steps assume FRP is already installed and `frpc` already runs as a
 systemd service.
 
-> **Run the commands as `root`.** The installer checks this and stops if it is
-> not started with root permissions.
+> **Security note:** FRP Gui is intended for private/admin networks. Keep login
+> enabled, use a strong password, and put HTTPS in front of nginx before exposing
+> it publicly.
+
+> **Run the install commands as `root`.** The easiest way is to start a root
+> shell first with `sudo -i`, then run the commands below. You can also run the
+> installer directly with `sudo ./scripts/install_debian.sh`. Root permissions
+> are required because the installer installs Debian packages, writes
+> `/etc/frp-gui.env`, creates systemd services, writes nginx config and
+> starts/reloads services. The installer checks this and stops if it is not
+> started with root permissions.
 
 ### 1. Install git
 
