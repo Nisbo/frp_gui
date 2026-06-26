@@ -35,6 +35,15 @@
       </div>
     </div>
 
+    <div class="diagnostics config-state-diagnostics">
+      {% for item in config_state.messages %}
+        <div class="diagnostic {{ item.status }}">
+          <strong>{{ item.label }}</strong>
+          <span>{{ item.message }}</span>
+        </div>
+      {% endfor %}
+    </div>
+
     <form class="form-grid single" method="post" action="{{ url_for('save_settings') }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
 
@@ -97,6 +106,14 @@
           <dt>ExecStart</dt>
           <dd>{{ frpc_unit.exec_start or "Unknown" }}</dd>
         </div>
+        <div>
+          <dt>Config passed to frpc</dt>
+          <dd>{{ frpc_unit.config_path or "Unknown" }}</dd>
+        </div>
+        <div>
+          <dt>Service config format</dt>
+          <dd>{{ frpc_unit.config_format or "Unknown" }}</dd>
+        </div>
       </dl>
 
       <div class="coming-soon nginx-preview-note">
@@ -131,7 +148,11 @@
       </div>
       <div>
         <dt>Config format</dt>
-        <dd>{{ config_format }}</dd>
+        <dd>{{ config_state.extension_format }}{% if config_state.content_format != config_state.extension_format %} / content {{ config_state.content_format }}{% endif %}</dd>
+      </div>
+      <div>
+        <dt>Config editing</dt>
+        <dd>{% if config_state.editable %}Enabled{% else %}Locked{% endif %}</dd>
       </div>
     </dl>
   </section>
@@ -512,13 +533,84 @@
     <div class="panel-head">
       <div>
         <h2>TOML migration</h2>
-        <p>The converter will be added as a guided step with preview, backup and verify.</p>
+        <p>Move existing INI setups to TOML, then update systemd so frpc starts with the same file.</p>
       </div>
     </div>
-    <div class="coming-soon">
-      <strong>Planned flow</strong>
-      <span>Read INI, preview TOML, write <code>frpc.toml</code>, run <code>frpc verify</code>, then switch the service command.</span>
+
+    <div class="diagnostics config-state-diagnostics">
+      {% for item in config_state.messages %}
+        <div class="diagnostic {{ item.status }}">
+          <strong>{{ item.label }}</strong>
+          <span>{{ item.message }}</span>
+        </div>
+      {% endfor %}
     </div>
+
+    <dl class="detail-grid two migration-status-grid">
+      <div>
+        <dt>FRP Gui config path</dt>
+        <dd>{{ config_path }}</dd>
+      </div>
+      <div>
+        <dt>GUI config format</dt>
+        <dd>{{ config_state.extension_format }}</dd>
+      </div>
+      <div>
+        <dt>systemd config path</dt>
+        <dd>{{ config_state.systemd_config_path or "Unknown" }}</dd>
+      </div>
+      <div>
+        <dt>systemd config format</dt>
+        <dd>{{ config_state.systemd_config_format or "Unknown" }}</dd>
+      </div>
+      <div>
+        <dt>Editing status</dt>
+        <dd>{% if config_state.editable %}TOML editing enabled{% else %}Locked{% endif %}</dd>
+      </div>
+      <div>
+        <dt>Next step</dt>
+        <dd>{% if config_state.extension_format == "INI" %}Convert INI to TOML{% elif config_state.severity == "error" %}Fix mismatch{% else %}Ready{% endif %}</dd>
+      </div>
+    </dl>
+
+    {% if config_state.systemd_mismatch and frpc_unit.available %}
+      <form class="form-grid single migration-form" method="post" action="{{ url_for('update_systemd_config_path') }}" data-confirm="Update the configured frpc systemd service to use the active GUI config path? FRP Gui creates a backup of the unit file, replaces only the detected config path in ExecStart, and runs systemctl daemon-reload. Restart FRP Client afterwards.">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="coming-soon error-note">
+          <strong>systemd path update available</strong>
+          <span>The service currently starts with <code>{{ config_state.systemd_config_path }}</code>. FRP Gui is using <code>{{ config_path }}</code>.</span>
+        </div>
+        <div class="form-actions split-actions">
+          <a class="ghost-button" href="{{ url_for('settings', tab='general') }}" title="Review systemd unit">Review unit</a>
+          <button class="primary-button" type="submit" title="Update systemd config path">Update systemd config path</button>
+        </div>
+      </form>
+    {% endif %}
+
+    {% if config_state.extension_format == "INI" %}
+      <form class="form-grid single migration-form" method="post" action="{{ url_for('convert_to_toml') }}" data-confirm="Convert the active INI config to TOML? FRP Gui creates a config backup, writes the TOML file, verifies it with frpc, and selects the TOML path for this running GUI. systemd is not changed automatically yet.">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <label>
+          TOML target path
+          <input name="target_path" value="{{ migration_target }}" required>
+          <span class="field-help">Usually the same directory as the current INI, for example <code>/opt/frp/frpc.toml</code>. Existing files are overwritten only after a backup of the current INI is created.</span>
+        </label>
+        <div class="form-actions split-actions">
+          <a class="ghost-button" href="{{ url_for('index') }}" title="Back to dashboard">Back</a>
+          <button class="primary-button" type="submit" title="Convert INI to TOML">Convert to TOML</button>
+        </div>
+      </form>
+    {% elif config_state.editable %}
+      <div class="coming-soon">
+        <strong>TOML editing is active</strong>
+        <span>FRP Gui and the configured systemd service point to the same TOML config. Proxy and server editing is enabled.</span>
+      </div>
+    {% else %}
+      <div class="coming-soon error-note">
+        <strong>Manual fix required</strong>
+        <span>{{ config_state.edit_message }}</span>
+      </div>
+    {% endif %}
   </section>
   {% endif %}
 {% endblock %}

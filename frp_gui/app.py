@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import urllib.error
 import urllib.request
+from datetime import datetime
 from pathlib import Path
 from urllib.parse import quote
 
@@ -28,10 +29,12 @@ from .backups import create_backup, delete_backup, get_backup, list_backups, rea
 from .config_io import (
     FrpConfig,
     backup_config,
+    read_config,
     read_ini,
     validate_common,
     validate_proxy,
-    write_ini,
+    write_config,
+    write_toml,
 )
 from .network import NetworkConfig, check_network, render_nginx_config, test_nginx_config, write_nginx_config
 from .updates import check_for_update, update_status_to_dict
@@ -141,12 +144,15 @@ def create_app() -> Flask:
         if error:
             flash(error, "error")
             return redirect(url_for("settings"))
+        frpc_unit = _frpc_systemd_unit(app.config["FRPC_SERVICE"])
+        config_state = _config_state(Path(app.config["FRP_CONFIG_PATH"]), frpc_unit)
         sort_key = request.args.get("sort", "name")
         direction = request.args.get("direction", "asc")
         proxies_view = _sort_proxies([_proxy_view(proxy) for proxy in config.proxies], sort_key, direction)
         return render_template(
             "index.html",
             config=config,
+            config_state=config_state,
             frpc_status=_service_status(app),
             frpc_version=_frpc_version(app),
             gui_running_label=f"{APP_VERSION} running",
@@ -163,6 +169,8 @@ def create_app() -> Flask:
 
     @app.get("/server")
     def edit_server():
+        if not _require_editable_config(app):
+            return redirect(url_for("index"))
         config, error = _try_load_config(app)
         if error:
             flash(error, "error")
@@ -179,14 +187,17 @@ def create_app() -> Flask:
         shown_config_path = Path(form_values.get("config_path") or config_path)
         shown_frpc_binary = form_values.get("frpc_binary") or app.config["FRPC_BINARY"]
         shown_frpc_service = form_values.get("frpc_service") or app.config["FRPC_SERVICE"]
+        frpc_unit = _frpc_systemd_unit(shown_frpc_service)
+        config_state = _config_state(shown_config_path, frpc_unit)
         return render_template(
             "settings.html",
             active_tab=active_tab,
             config_path=shown_config_path,
-            config_format=_config_format(shown_config_path),
+            config_format=config_state["extension_format"],
+            config_state=config_state,
             frpc_binary=shown_frpc_binary,
             frpc_service=shown_frpc_service,
-            frpc_unit=_frpc_systemd_unit(shown_frpc_service),
+            frpc_unit=frpc_unit,
             app_root=Path(app.root_path).parent,
             configured_install_path=app.config["INSTALL_PATH"],
             env_file=app.config["ENV_FILE"],
@@ -199,6 +210,7 @@ def create_app() -> Flask:
             app_update_status=update_status(Path(app.root_path).parent),
             app_update_result=session.pop("app_update_result", None),
             app_update_backups=list_app_backups(Path(app.root_path).parent),
+            migration_target=shown_config_path.with_suffix(".toml"),
         )
 
     @app.post("/settings")
@@ -239,6 +251,53 @@ def create_app() -> Flask:
         app.config["ALLOW_SYSTEMCTL"] = request.form.get("allow_systemctl") == "on"
         flash("Runtime settings updated for this app process.", "success")
         return redirect(url_for("settings", tab="general"))
+
+    @app.post("/settings/migration/convert-to-toml")
+    def convert_to_toml():
+        source_path = Path(app.config["FRP_CONFIG_PATH"])
+        target_path = Path(request.form.get("target_path", "").strip() or source_path.with_suffix(".toml"))
+        if source_path.suffix.lower() != ".ini":
+            flash("The active config is not an INI file. No TOML migration is required.", "warning")
+            return redirect(url_for("settings", tab="migration"))
+        if target_path.suffix.lower() != ".toml":
+            flash("The migration target must end with .toml.", "error")
+            return redirect(url_for("settings", tab="migration"))
+
+        try:
+            config = read_ini(source_path)
+            backup_config(source_path, Path(app.config["FRP_BACKUP_DIR"]))
+            write_toml(target_path, config)
+        except (OSError, ValueError) as exc:
+            flash(f"TOML migration failed: {exc}", "error")
+            return redirect(url_for("settings", tab="migration"))
+
+        previous_path = app.config["FRP_CONFIG_PATH"]
+        app.config["FRP_CONFIG_PATH"] = target_path
+        ok, output = _verify_config(app)
+        if not ok:
+            app.config["FRP_CONFIG_PATH"] = previous_path
+            flash(output or "TOML migration failed because frpc verify did not accept the generated file.", "error")
+            return redirect(url_for("settings", tab="migration"))
+
+        _mark_restart_required()
+        flash("TOML config created and selected. Check the systemd mismatch warning before restarting FRP Client.", "success")
+        return redirect(url_for("settings", tab="migration"))
+
+    @app.post("/settings/migration/update-systemd-config")
+    def update_systemd_config_path():
+        target_path = Path(app.config["FRP_CONFIG_PATH"])
+        try:
+            backup_path = _update_frpc_service_config_path(app.config["FRPC_SERVICE"], target_path)
+        except OSError as exc:
+            flash(f"systemd service update failed: {exc}", "error")
+            return redirect(url_for("settings", tab="migration"))
+        except ValueError as exc:
+            flash(str(exc), "error")
+            return redirect(url_for("settings", tab="migration"))
+
+        _mark_restart_required()
+        flash(f"systemd service config path updated. Unit backup: {backup_path}", "success")
+        return redirect(url_for("settings", tab="migration"))
 
     @app.post("/settings/check-frpc-update")
     def check_frpc_update():
@@ -530,6 +589,8 @@ def create_app() -> Flask:
 
     @app.post("/common")
     def save_common():
+        if not _require_editable_config(app):
+            return redirect(url_for("index"))
         config = _load_config(app)
         common = {
             "server_addr": request.form.get("server_addr", "").strip(),
@@ -551,10 +612,14 @@ def create_app() -> Flask:
 
     @app.get("/proxy/new")
     def new_proxy():
+        if not _require_editable_config(app):
+            return redirect(url_for("index"))
         return render_template("proxy_form.html", proxy={}, mode="new")
 
     @app.post("/proxy")
     def create_proxy():
+        if not _require_editable_config(app):
+            return redirect(url_for("index"))
         config = _load_config(app)
         proxy = _proxy_from_form()
         existing = {item["name"] for item in config.proxies}
@@ -572,6 +637,8 @@ def create_app() -> Flask:
 
     @app.get("/proxy/<name>/edit")
     def edit_proxy(name: str):
+        if not _require_editable_config(app):
+            return redirect(url_for("index"))
         config = _load_config(app)
         proxy = _find_proxy(config, name)
         if proxy is None:
@@ -581,6 +648,8 @@ def create_app() -> Flask:
 
     @app.get("/proxy/<name>/copy")
     def copy_proxy(name: str):
+        if not _require_editable_config(app):
+            return redirect(url_for("index"))
         config = _load_config(app)
         proxy = _find_proxy(config, name)
         if proxy is None:
@@ -594,6 +663,8 @@ def create_app() -> Flask:
 
     @app.post("/proxy/<name>")
     def update_proxy(name: str):
+        if not _require_editable_config(app):
+            return redirect(url_for("index"))
         config = _load_config(app)
         index = _find_proxy_index(config, name)
         if index is None:
@@ -616,6 +687,8 @@ def create_app() -> Flask:
 
     @app.post("/proxy/<name>/toggle")
     def toggle_proxy(name: str):
+        if not _require_editable_config(app):
+            return redirect(url_for("index"))
         config = _load_config(app)
         proxy = _find_proxy(config, name)
         if proxy is None:
@@ -631,6 +704,8 @@ def create_app() -> Flask:
 
     @app.post("/proxy/<name>/delete")
     def delete_proxy(name: str):
+        if not _require_editable_config(app):
+            return redirect(url_for("index"))
         config = _load_config(app)
         before = len(config.proxies)
         config.proxies = [proxy for proxy in config.proxies if proxy["name"] != name]
@@ -700,13 +775,13 @@ def create_app() -> Flask:
 
 
 def _load_config(app: Flask) -> FrpConfig:
-    return read_ini(Path(app.config["FRP_CONFIG_PATH"]))
+    return read_config(Path(app.config["FRP_CONFIG_PATH"]))
 
 
 def _try_load_config(app: Flask) -> tuple[FrpConfig | None, str | None]:
     path = Path(app.config["FRP_CONFIG_PATH"])
     try:
-        return read_ini(path), None
+        return read_config(path), None
     except FileNotFoundError:
         return None, f"Config file not found: {path}"
     except OSError as exc:
@@ -718,7 +793,15 @@ def _try_load_config(app: Flask) -> tuple[FrpConfig | None, str | None]:
 def _save_config(app: Flask, config: FrpConfig) -> None:
     path = Path(app.config["FRP_CONFIG_PATH"])
     backup_config(path, Path(app.config["FRP_BACKUP_DIR"]))
-    write_ini(path, config)
+    write_config(path, config)
+
+
+def _require_editable_config(app: Flask) -> bool:
+    state = _config_state(Path(app.config["FRP_CONFIG_PATH"]), _frpc_systemd_unit(app.config["FRPC_SERVICE"]))
+    if state["editable"]:
+        return True
+    flash(str(state["edit_message"]), "error")
+    return False
 
 
 def _mark_restart_required() -> None:
@@ -836,6 +919,8 @@ def _frpc_systemd_unit(service: str) -> dict[str, str | bool]:
             "fragment_path": "",
             "drop_in_paths": "",
             "exec_start": "",
+            "config_path": "",
+            "config_format": "Unknown",
             "content": "",
         }
 
@@ -848,6 +933,8 @@ def _frpc_systemd_unit(service: str) -> dict[str, str | bool]:
             "fragment_path": "",
             "drop_in_paths": "",
             "exec_start": "",
+            "config_path": "",
+            "config_format": "Unknown",
             "content": "",
         }
 
@@ -865,6 +952,8 @@ def _frpc_systemd_unit(service: str) -> dict[str, str | bool]:
             "fragment_path": "",
             "drop_in_paths": "",
             "exec_start": "",
+            "config_path": "",
+            "config_format": "Unknown",
             "content": "",
         }
 
@@ -877,6 +966,7 @@ def _frpc_systemd_unit(service: str) -> dict[str, str | bool]:
     )
     content = cat.stdout.strip() if cat.returncode == 0 else cat.stderr.strip()
     exec_start = values.get("ExecStart", "")
+    config_path = _extract_frpc_config_path(exec_start)
     if exec_start and not _looks_like_frpc_exec(exec_start):
         return {
             "available": False,
@@ -885,6 +975,8 @@ def _frpc_systemd_unit(service: str) -> dict[str, str | bool]:
             "fragment_path": values.get("FragmentPath", ""),
             "drop_in_paths": values.get("DropInPaths", ""),
             "exec_start": exec_start,
+            "config_path": config_path,
+            "config_format": _config_format(Path(config_path)) if config_path else "Unknown",
             "content": "",
         }
     return {
@@ -894,6 +986,8 @@ def _frpc_systemd_unit(service: str) -> dict[str, str | bool]:
         "fragment_path": values.get("FragmentPath", ""),
         "drop_in_paths": values.get("DropInPaths", ""),
         "exec_start": exec_start,
+        "config_path": config_path,
+        "config_format": _config_format(Path(config_path)) if config_path else "Unknown",
         "content": content,
     }
 
@@ -916,6 +1010,24 @@ def _frpc_service_validation_error(service: str) -> str | None:
 
 def _looks_like_frpc_exec(value: str) -> bool:
     return bool(re.search(r"(?<![\w.-])frpc(?![\w.-])", value))
+
+
+def _extract_frpc_config_path(exec_start: str) -> str:
+    if not exec_start:
+        return ""
+    argv_match = re.search(r"argv\[]=(.*?)(?:\s+;\s+|$)", exec_start)
+    command = argv_match.group(1) if argv_match else exec_start
+    try:
+        parts = shlex.split(command)
+    except ValueError:
+        parts = command.split()
+    for index, part in enumerate(parts):
+        if part in {"-c", "--config"} and index + 1 < len(parts):
+            return parts[index + 1].strip("'\"")
+        if part.startswith("-c=") or part.startswith("--config="):
+            return part.split("=", 1)[1].strip("'\"")
+    regex_match = re.search(r"(?:^|[\s;])(?:-c|--config)\s+([^\s;]+)", exec_start)
+    return regex_match.group(1).strip("'\"") if regex_match else ""
 
 
 def _frpc_version(app: Flask) -> str | None:
@@ -995,6 +1107,132 @@ def _config_format(path: Path) -> str:
     return suffix.upper() if suffix else "Unknown"
 
 
+def _config_state(path: Path, frpc_unit: dict[str, str | bool] | None = None) -> dict[str, object]:
+    extension_format = _config_format(path)
+    content_format = "Unknown"
+    messages: list[dict[str, str]] = []
+    editable = False
+
+    if not path.exists():
+        messages.append({"status": "error", "label": "Config file", "message": f"Config file not found: {path}"})
+    elif not path.is_file():
+        messages.append({"status": "error", "label": "Config file", "message": f"Config path is not a file: {path}"})
+    else:
+        try:
+            read_config(path)
+            content_format = extension_format
+            messages.append({"status": "ok", "label": "Config file", "message": f"{extension_format} config can be parsed."})
+        except Exception as exc:
+            messages.append({"status": "error", "label": "Config file", "message": f"Config cannot be parsed as {extension_format}: {exc}"})
+
+    if extension_format == "INI":
+        messages.append({
+            "status": "warning",
+            "label": "Migration required",
+            "message": "INI configs are shown read-only. Convert to TOML before editing proxies or server settings.",
+        })
+    elif extension_format != "TOML":
+        messages.append({
+            "status": "error",
+            "label": "Unsupported format",
+            "message": "FRP Gui edits only TOML configs. INI can be migrated; other formats are unsupported.",
+        })
+
+    unit_config_path = ""
+    unit_config_format = "Unknown"
+    systemd_mismatch = False
+    if frpc_unit and frpc_unit.get("available"):
+        unit_config_path = str(frpc_unit.get("config_path") or "")
+        unit_config_format = str(frpc_unit.get("config_format") or "Unknown")
+        if unit_config_path:
+            if _normalized_path(unit_config_path) != _normalized_path(str(path)):
+                systemd_mismatch = True
+                messages.append({
+                    "status": "error",
+                    "label": "systemd config mismatch",
+                    "message": f"FRP Gui is using {path}, but the service starts frpc with {unit_config_path}.",
+                })
+            elif unit_config_format != "TOML":
+                messages.append({
+                    "status": "warning",
+                    "label": "systemd uses INI",
+                    "message": "The FRP Client service still starts with an INI config. Migrate to TOML before editing.",
+                })
+        else:
+            messages.append({
+                "status": "warning",
+                "label": "systemd config unknown",
+                "message": "The service ExecStart does not expose a -c/--config path, so FRP Gui cannot compare it.",
+            })
+
+    editable = (
+        extension_format == "TOML"
+        and content_format == "TOML"
+        and not any(message["status"] == "error" for message in messages)
+        and not any(message["label"] in {"systemd uses INI", "Migration required"} for message in messages)
+    )
+    edit_message = "Config editing is locked until the active config is TOML and matches the frpc systemd command."
+    if extension_format == "INI":
+        edit_message = "Config editing is locked in INI mode. Open Settings -> Migration and convert the config to TOML first."
+    elif any(message["label"] == "systemd config mismatch" for message in messages):
+        edit_message = "Config editing is locked because FRP Gui and the frpc systemd service point to different config files."
+
+    severity = "ok"
+    if any(message["status"] == "error" for message in messages):
+        severity = "error"
+    elif any(message["status"] == "warning" for message in messages):
+        severity = "warning"
+
+    return {
+        "extension_format": extension_format,
+        "content_format": content_format,
+        "editable": editable,
+        "edit_message": edit_message,
+        "messages": messages,
+        "severity": severity,
+        "systemd_config_path": unit_config_path,
+        "systemd_config_format": unit_config_format,
+        "systemd_mismatch": systemd_mismatch,
+    }
+
+
+def _normalized_path(value: str) -> str:
+    try:
+        return str(Path(value).expanduser().resolve(strict=False))
+    except OSError:
+        return value
+
+
+def _update_frpc_service_config_path(service: str, target_path: Path) -> Path:
+    unit = _frpc_systemd_unit(service)
+    if not unit.get("available"):
+        raise ValueError(str(unit.get("message") or "Configured FRP Client service is unavailable."))
+    old_path = str(unit.get("config_path") or "")
+    if not old_path:
+        raise ValueError("The FRP Client service ExecStart does not contain a -c/--config path that FRP Gui can update.")
+    if not _looks_like_frpc_exec(str(unit.get("exec_start") or "")):
+        raise ValueError(f"Configured service '{service}' does not appear to start frpc.")
+
+    fragment_path = Path(str(unit.get("fragment_path") or ""))
+    if not fragment_path.exists() or not fragment_path.is_file():
+        raise ValueError(f"systemd unit file cannot be edited: {fragment_path}")
+
+    content = fragment_path.read_text(encoding="utf-8")
+    if old_path not in content:
+        raise ValueError(f"The current config path was detected as {old_path}, but it was not found in {fragment_path}.")
+
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    backup_path = fragment_path.with_name(f"{fragment_path.name}.frp-gui-{stamp}.bak")
+    shutil.copy2(fragment_path, backup_path)
+    fragment_path.write_text(content.replace(old_path, str(target_path), 1), encoding="utf-8")
+
+    systemctl = shutil.which("systemctl")
+    if systemctl:
+        subprocess.run([systemctl, "daemon-reload"], check=False, capture_output=True, text=True)
+
+    return backup_path
+
+
 def _service_control_available(app: Flask) -> bool:
     return bool(app.config["ALLOW_SYSTEMCTL"] and app.config["FRPC_SERVICE"] and shutil.which("systemctl"))
 
@@ -1018,7 +1256,7 @@ def _settings_diagnostics(config_path: Path, frpc_binary: str, frpc_service: str
         diagnostics.append({"label": "Config file", "status": "error", "message": f"Not a file: {config_path}"})
     else:
         try:
-            read_ini(config_path)
+            read_config(config_path)
             diagnostics.append({"label": "Config file", "status": "ok", "message": f"Readable: {config_path}"})
         except Exception as exc:
             diagnostics.append({"label": "Config file", "status": "error", "message": f"Cannot parse: {exc}"})
@@ -1053,6 +1291,15 @@ def _settings_diagnostics(config_path: Path, frpc_binary: str, frpc_service: str
             diagnostics.append({"label": "FRP Client service", "status": "error", "message": service_error})
         else:
             diagnostics.append({"label": "FRP Client service", "status": "ok", "message": "Service ExecStart appears to use frpc."})
+
+        state = _config_state(config_path, _frpc_systemd_unit(frpc_service))
+        for message in state["messages"]:
+            if message["status"] != "ok":
+                diagnostics.append({
+                    "label": str(message["label"]),
+                    "status": str(message["status"]),
+                    "message": str(message["message"]),
+                })
 
     return diagnostics
 

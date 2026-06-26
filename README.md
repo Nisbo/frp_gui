@@ -1,12 +1,12 @@
 # FRP Gui
 
-FRP Gui is a small web interface for managing an existing FRP client config,
-usually `frpc.ini`.
+FRP Gui is a small web interface for managing an existing FRP client config.
+TOML is the editable format; existing INI configs can be migrated in the GUI.
 
 Current app version:
 
 ```text
-0.1.18
+0.1.19
 ```
 
 ## Quick Install On Debian 12
@@ -77,7 +77,7 @@ nginx accepts the browser connection and forwards it to Gunicorn.
 The default setup looks like this:
 
 ```text
-Browser -> nginx :8844 -> Gunicorn/FRP Gui 127.0.0.1:8845 -> frpc.ini
+Browser -> nginx :8844 -> Gunicorn/FRP Gui 127.0.0.1:8845 -> frpc.toml
 ```
 
 ## What Is FRP_GUI_SECRET?
@@ -106,7 +106,7 @@ Recommended release workflow:
 ```
 
 The release check compares your installed version with the latest GitHub
-release tag, for example `0.1.18`. When updates are available, the GUI shows
+release tag, for example `0.1.19`. When updates are available, the GUI shows
 release notes for every official release newer than your installed version.
 
 If the server cannot download the release directly, use the manual fallback:
@@ -283,16 +283,29 @@ By default the development app uses:
 sample/frpc.ini
 ```
 
-## Planned TOML Migration
+## TOML Migration
 
-FRP supports TOML/YAML/JSON since v0.52.0 and marks INI as deprecated. A later
-version of FRP Gui should:
+FRP supports TOML/YAML/JSON since v0.52.0 and marks INI as deprecated. FRP Gui
+therefore treats INI as read-only and TOML as the editable format.
 
-- read existing INI
-- show a conversion preview
-- write `frpc.toml`
-- run `frpc verify -c /opt/frp/frpc.toml`
-- update the `frpc.service` command from `frpc.ini` to `frpc.toml`
+Open:
+
+```text
+Settings -> Migration
+```
+
+The migration step:
+
+- reads the active INI file
+- creates a backup
+- writes a TOML file, normally `frpc.toml`
+- runs `frpc verify -c /opt/frp/frpc.toml`
+- selects the TOML path for the running GUI
+
+FRP Gui also compares its active config path with the config passed in the
+configured `frpc` systemd service. If the service still starts with
+`frpc.ini`, the GUI shows a red mismatch warning and keeps editing locked until
+both paths point to the same TOML file.
 
 ## Security Notes
 

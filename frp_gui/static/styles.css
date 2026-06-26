@@ -648,6 +648,22 @@ tr:last-child td {
   border-color: color-mix(in srgb, var(--amber) 78%, var(--line));
 }
 
+.diagnostic-action {
+  justify-self: start;
+}
+
+.config-state-diagnostics {
+  margin-bottom: 18px;
+}
+
+.migration-status-grid {
+  margin-bottom: 18px;
+}
+
+.error-note {
+  border-color: color-mix(in srgb, var(--danger) 70%, var(--line));
+}
+
 .split-actions {
   justify-content: space-between;
 }

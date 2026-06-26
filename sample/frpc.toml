@@ -1,0 +1,30 @@
+serverAddr = "frps.example.com"
+serverPort = 7000
+
+[auth]
+token = "change-me-token"
+
+[transport.tls]
+enable = true
+
+[[proxies]]
+name = "example-admin"
+type = "https"
+localIP = "127.0.0.1"
+localPort = 443
+customDomains = ["admin.example.com"]
+
+[[proxies]]
+name = "example-web"
+type = "http"
+localIP = "127.0.0.1"
+localPort = 80
+customDomains = ["app.example.com"]
+
+# Disabled proxies kept by FRP Gui. They are commented out so frpc cannot start them.
+# [[proxies]]
+# name = "disabled-example"
+# type = "tcp"
+# localIP = "127.0.0.1"
+# localPort = 22
+# remotePort = 2222
